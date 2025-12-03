@@ -1,13 +1,12 @@
 import os
 import sys
 from pathlib import Path
-
 from setuptools import setup, find_packages
 from distutils.core import Extension
 from Cython.Build import cythonize
-
 import numpy as np
 import pyarrow as pa
+
 arrow_lib_dir = pa.get_library_dirs()[0]
 
 if "darwin" in sys.platform:
@@ -25,7 +24,6 @@ else:
 setup_dir = Path(os.path.abspath(os.path.dirname(__file__)))
 core_dir = setup_dir / 'core' / 'src'
 
-# INCLUDE_DIRS = [os.path.join(setup_dir, "..", "core", "src")]
 ext = Extension(
     "mckp.ext",
     language="c++",
@@ -38,14 +36,6 @@ ext = Extension(
 )
 
 setup(
-    name="mckp",
-    version="0.1",
     packages=find_packages(include=["mckp"]),
     ext_modules=cythonize(ext, compiler_directives={"language_level": 3}),
-    install_requires=[
-        "pyarrow>=20.0.0",
-        "numpy>=2.2.4",
-        "polars>=1.27.1",
-    ],
-    # TODO: Add SPDX license expression
 )
