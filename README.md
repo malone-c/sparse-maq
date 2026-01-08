@@ -13,5 +13,5 @@ This repo is a fork of https://github.com/grf-labs/maq/.
 # References
 
 Erik Sverdrup, Han Wu, Susan Athey, and Stefan Wager.
-<b>Qini Curves for Multi-Armed Treatment Rules.</b> 2023.
-[<a href="https://arxiv.org/abs/2306.11979">arxiv</a>]
+Qini Curves for Multi-Armed Treatment Rules. 2023.
+[arxiv](https://arxiv.org/abs/2306.11979)
