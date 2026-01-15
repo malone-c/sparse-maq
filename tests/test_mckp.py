@@ -1,6 +1,6 @@
 import polars as pl
 import pyarrow as pa
-import mckp
+import sparse_maq
 
 
 # Create test data with more customers and smaller numbers
@@ -58,7 +58,7 @@ unique_patient_ids = table.select('patient_id').unique()
 unique_treatment_ids = table.select(pl.col('treatment_id').explode().unique())
 
 print(unique_patient_ids)
-solver = mckp.Solver(unique_patient_ids, unique_treatment_ids)
+solver = sparse_maq.Solver(unique_patient_ids, unique_treatment_ids)
 
 results = solver.fit(
     table,

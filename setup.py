@@ -25,9 +25,9 @@ setup_dir = Path(os.path.abspath(os.path.dirname(__file__)))
 core_dir = setup_dir / 'core' / 'src'
 
 ext = Extension(
-    "mckp.ext",
+    "sparse_maq.ext",
     language="c++",
-    sources=["mckp" + os.path.sep + "mckpbindings.pyx"],
+    sources=["sparse_maq" + os.path.sep + "mckpbindings.pyx"],
     extra_compile_args=COMPILE_ARGS,
     extra_link_args=LINK_ARGS,
     include_dirs=[str(core_dir), pa.get_include(), np.get_include()],
@@ -36,6 +36,6 @@ ext = Extension(
 )
 
 setup(
-    packages=find_packages(include=["mckp"]),
+    packages=find_packages(include=["sparse_maq"]),
     ext_modules=cythonize(ext, compiler_directives={"language_level": 3}),
 )

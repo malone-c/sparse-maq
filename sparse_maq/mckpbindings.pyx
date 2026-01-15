@@ -7,7 +7,7 @@ from pyarrow.lib cimport ListArray, CArray, CUInt32Array, CDoubleArray, CListArr
 import numpy as np
 
 
-from mckp.mckpdefs cimport pair, vector, solution_path, run
+from sparse_maq.mckpdefs cimport pair, vector, solution_path, run
 
 cpdef solver_cpp(
     ListArray treatment_id_lists,

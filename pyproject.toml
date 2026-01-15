@@ -9,7 +9,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mckp"
+name = "sparse_maq"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
