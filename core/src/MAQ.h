@@ -14,7 +14,7 @@
 #include "Solver.hpp"
 #include <iostream>
 
-namespace mckp {
+namespace sparse_maq {
 
 solution_path run(
   std::vector<std::vector<uint32_t>>& treatment_id_arrays,
@@ -37,6 +37,6 @@ solution_path run(
   return solver.fit();
 }
 
-} // namespace mckp
+} // namespace sparse_maq
 
 #endif // MAQ_H

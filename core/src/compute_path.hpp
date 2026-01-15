@@ -7,7 +7,7 @@
 #include <vector>
 #include "Data.hpp" // Include the header file where Data is defined
 
-namespace mckp {
+namespace sparse_maq {
 
 typedef std::pair<std::vector<std::vector<double>>, std::vector<std::vector<size_t>>> solution_path;
 
@@ -89,6 +89,6 @@ solution_path compute_path(
   return std::make_pair(std::move(spend_gain), std::move(i_k_path));
 }
 
-} // namespace mckp
+} // namespace sparse_maq
 
 #endif // MAQ_COMPUTE_PATH_HPP

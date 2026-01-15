@@ -20,7 +20,7 @@ This algorithm maintains a stack with the first two points on top, then iterativ
 proceeds by checking if point k should be replaced by or augmented by point l.
 */
 
-namespace mckp {
+namespace sparse_maq {
 
 inline bool candidate_dominates_last_selection(
   const std::vector<TreatmentView>& selections,
@@ -88,6 +88,6 @@ void convex_hull(std::vector<std::vector<TreatmentView>>& treatment_arrays) {
   }
 }
 
-} // namespace mckp
+} // namespace sparse_maq
 
 #endif // MAQ_CONVEX_HULL_HPP

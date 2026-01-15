@@ -12,7 +12,7 @@
 #include "convex_hull.hpp"
 #include "compute_path.hpp"
 
-namespace mckp {
+namespace sparse_maq {
 
 class Solver {
   public:
@@ -30,6 +30,6 @@ class Solver {
     double budget;
 };
 
-} // namespace mckp
+} // namespace sparse_maq
 
 #endif // MAQ_SOLVER_HPP

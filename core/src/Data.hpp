@@ -6,7 +6,7 @@
 #include <string>
 #include <iostream>
 
-namespace mckp {
+namespace sparse_maq {
 
 class TreatmentView {
   public:
@@ -50,6 +50,6 @@ class TreatmentView {
     }
     return treatment_view_arrays;
   }
-} // namespace mckp
+} // namespace sparse_maq
 
 #endif // MAQ_DATA_HPP
