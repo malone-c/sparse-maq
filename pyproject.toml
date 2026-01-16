@@ -16,4 +16,13 @@ dependencies = [
     "pyarrow>=20.0.0,<21",
     "numpy>=2.2.4",
     "polars>=1.27.1",
+    "ipykernel>=7.1.0",
 ]
+
+[dependency-groups]
+benchmarking = [
+    "maq",
+]
+
+[tool.uv.sources]
+maq = { git = "https://github.com/grf-labs/maq.git", subdirectory = "python-package", rev = "py0.2.2" }
