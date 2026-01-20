@@ -1,4 +1,5 @@
 # %% imports
+from pathlib import Path
 import polars as pl
 import numpy as np
 
@@ -9,6 +10,7 @@ def sample_treatment_eligibility_set(k: int) -> np.ndarray:
     treatments = np.zeros(k, dtype=int)
     treatments[indices] = 1
     return treatments
+
 
 def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     unique_treatment_ids = np.array([str(i) for i in range(k)])
@@ -27,49 +29,42 @@ def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame
     )
     return unique_treatment_ids_df, unique_patient_ids_df, df
 
-# %% sparse_maq connection
-from sparse_maq import Solver
 
-treatments, patients, df = generate_data_sparse_maq(100, 10)
-solver = Solver(treatments, patients)
-solver.fit(df)
-
-# %% maq connection
-from maq import MAQ
-
-# %% generate data
 def generate_data_maq(n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
     eligibility = np.concatenate([sample_treatment_eligibility_set(k).reshape(1, -1) for _ in range(n)], axis=0)
-    reward = eligibility * np.random.standard_exponential((n, k))
-    cost = np.zeros((n, k))
+    n_to_generate = np.sum(eligibility)
+    random_rewards = np.random.standard_exponential(n_to_generate)
+    random_costs = np.random.standard_exponential(n_to_generate)
+
+    reward = np.zeros((n, k))
+    reward[eligibility == 1] = random_rewards
+
+    cost = np.full((n, k), np.inf)
     cost[:] = np.inf
-    cost[eligibility == 1] = 1
-    cost *= np.random.standard_exponential((n, k))
+    cost[eligibility == 1] = random_costs
 
     return reward, cost
 
-# reward and cost must be nxk matrices
-solver = MAQ()
-reward, cost = generate_data_maq(100, 10)
-print(cost)
-# solver.fit(reward, cost, reward)
 
-# %% fit MAQ
-solver.fit(reward, cost, reward)
+def generate_data(n: int, k: int) -> None:
+    base_path = Path('data') / f'{n=}_{k=}'
 
-# %% look at outputs
-solver.plot()
-import matplotlib.pyplot as plt
-plt.show()
+    (base_path / 'sparse_maq').mkdir(parents=True, exist_ok=True)
+    (base_path / 'maq').mkdir(parents=True, exist_ok=True)
 
-# %% script
-def generate_data(
-    n_patients: int, 
-    n_treatments: int,
-    eligible_proportion: float
-) -> pl.DataFrame:
-    np.rand.exp
-    return pl.DataFrame()
+    reward, cost = generate_data_maq(n, k)
+    np.save(base_path / 'maq' / 'reward.npy', reward)
+    np.save(base_path / 'maq' / 'cost.npy', cost)
+
+    treatments, patients, df = generate_data_sparse_maq(n, k)
+    treatments.write_parquet(base_path / 'sparse_maq' / 'treatments.parquet')
+    patients.write_parquet(base_path / 'sparse_maq' / 'patients.parquet')
+    df.write_parquet(base_path / 'sparse_maq' / 'data.parquet')
 
 if __name__ == '__main__':
-    print(generate_data(100, 10, 0.3))
+    for n in range(100_000, 1_000_001, 100_000):
+        for k in range(100, 1_001, 100):
+            generate_data(n, k)
+
+
+
