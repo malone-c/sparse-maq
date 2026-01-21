@@ -67,9 +67,7 @@ def generate_data(n: int, k: int) -> None:
     print("  Sparse MAQ data generation complete")
 
 if __name__ == '__main__':
-    for n in range(100_000, 1_000_001, 100_000):
-        for k in range(100, 1_001, 100):
-            generate_data(n, k)
+    generate_data(1_000_000, 500)
 
 
 
