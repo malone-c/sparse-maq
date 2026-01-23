@@ -5,6 +5,8 @@ from libc.stdint cimport uint32_t
 from libcpp.memory cimport shared_ptr, static_pointer_cast
 from pyarrow.lib cimport ListArray, CArray, CUInt32Array, CDoubleArray, CListArray, pyarrow_unwrap_array
 import numpy as np
+import time
+import os
 
 
 from sparse_maq.mckpdefs cimport pair, vector, solution_path, run
@@ -16,6 +18,12 @@ cpdef solver_cpp(
     double budget,
     uint32_t num_threads
 ):
+    cdef bint PROFILE = os.environ.get('SPARSE_MAQ_PROFILE', '0') == '1'
+    cdef double t0, t1, t2, t3, t4
+
+    if PROFILE:
+        t0 = time.perf_counter()
+
     # Unwrap arrays and cast to list arrays in one step
     cdef shared_ptr[CArray] treatment_id_array = pyarrow_unwrap_array(treatment_id_lists)
     cdef shared_ptr[CArray] reward_array = pyarrow_unwrap_array(reward_lists)
@@ -30,6 +38,10 @@ cpdef solver_cpp(
     cdef shared_ptr[CDoubleArray] rewards = static_pointer_cast[CDoubleArray, CArray](reward_list_array.get().values())
     cdef shared_ptr[CDoubleArray] costs = static_pointer_cast[CDoubleArray, CArray](cost_list_array.get().values())
 
+    if PROFILE:
+        t1 = time.perf_counter()
+        print(f"  Cython: PyArrow unwrap: {t1-t0:.2f}s")
+
     cdef vector[vector[uint32_t]] cpp_treatment_ids
     cdef vector[vector[double]] cpp_rewards
     cdef vector[vector[double]] cpp_costs
@@ -37,6 +49,10 @@ cpdef solver_cpp(
     cpp_treatment_ids.resize(treatment_id_list_array.get().length())
     cpp_rewards.resize(reward_list_array.get().length())
     cpp_costs.resize(cost_list_array.get().length())
+
+    if PROFILE:
+        t2 = time.perf_counter()
+        print(f"  Cython: Vector resize: {t2-t1:.2f}s")
 
     cdef int i, j, offset, length
     cdef uint32_t treatment_id
@@ -49,9 +65,13 @@ cpdef solver_cpp(
         cpp_rewards[i].resize(length)
         cpp_costs[i].resize(length)
         for j in range(length):
-            cpp_treatment_ids[i][j] = treatment_ids.get().Value(offset + j)    
+            cpp_treatment_ids[i][j] = treatment_ids.get().Value(offset + j)
             cpp_rewards[i][j] = rewards.get().Value(offset + j)
             cpp_costs[i][j] = costs.get().Value(offset + j)
+
+    if PROFILE:
+        t3 = time.perf_counter()
+        print(f"  Cython: Data copying loop: {t3-t2:.2f}s")
 
     path = run(
         cpp_treatment_ids,
@@ -59,6 +79,10 @@ cpdef solver_cpp(
         cpp_costs,
         budget
     )
+
+    if PROFILE:
+        t4 = time.perf_counter()
+        print(f"  Cython: C++ solver call: {t4-t3:.2f}s")
 
     res = dict()
     path_len = path.first[0].size()
