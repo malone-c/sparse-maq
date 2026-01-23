@@ -79,7 +79,7 @@ def parse_time_output(stderr: str) -> dict[str, Any]:
     return metrics
 
 def run_single_benchmark(
-    p: float, solver: str, temp_dir: Path
+        n: int, k: int, p: float, solver: str, temp_dir: Path
 ) -> dict[str, Any]:
     """
     Execute a single benchmark with GNU time wrapper.
@@ -110,7 +110,7 @@ def run_single_benchmark(
 
     try:
         # Step 1: Prepare data (NOT timed)
-        generate_data(n=100_000, k=100, p=p, temp_dir=temp_dir, solver=solver)
+        generate_data(n=n, k=k, p=p, temp_dir=temp_dir, solver=solver)
 
         # Step 2: Time only the solver execution
         solver_script = f"benchmarking/run_{solver}.py"
@@ -159,7 +159,7 @@ def run_single_benchmark(
 
 
 def run_benchmark_suite(
-        sparsity_levels: list[float], output_dir: Path,
+        n: int, k: int, sparsity_levels: list[float], output_dir: Path,
 ) -> Path:
     """
     Execute full benchmark suite with progress tracking.
@@ -196,6 +196,8 @@ def run_benchmark_suite(
         run_timestamp = datetime.now().isoformat()
 
         result = run_single_benchmark(
+            n=n,
+            k=k,
             p=p,
             solver=solver,
             temp_dir=temp_dir,
@@ -268,11 +270,16 @@ def main():
 if __name__ == '__main__':
     """CLI entry point."""
     sparsity_levels = [x / 40 for x in range(1, 21)]
+    sparsity_levels = [0.05]
+    
     
     # Run benchmark suite
     try:
         output_file = run_benchmark_suite(
-            sparsity_levels, output_dir=Path('benchmarking/results')
+            n=1000_000,
+            k=1_000,
+            sparsity_levels=sparsity_levels, 
+            output_dir=Path('benchmarking/results')
         )
     except Exception as e:
         print(f"Error running benchmark suite: {e}", file=sys.stderr)

@@ -65,7 +65,8 @@ def generate_data(n: int, k: int, p: float, temp_dir: Path, solver: str) -> None
     else:
         raise Exception('Give a proper value of solver')
 if __name__ == '__main__':
-    generate_data(n=100_000, k=100, p=0.1, temp_dir=Path('data') / 'temp', solver='maq')
+    pass
+    # generate_data(n=100_000, k=100, p=0.1, temp_dir=Path('data') / 'temp', solver='maq')
 
 
 
