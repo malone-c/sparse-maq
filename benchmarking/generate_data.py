@@ -19,7 +19,9 @@ def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame
     df = (
         pl.DataFrame({'patient_id': np.arange(n)})
             .with_columns(
-                treatment_id=pl.col('patient_id').map_elements(lambda _: unique_treatment_ids[sample_treatment_eligibility_set(k)])
+                treatment_id=pl.col('patient_id').map_elements(
+                    lambda _: unique_treatment_ids[sample_treatment_eligibility_set(k).astype(bool)]
+                )
             )
             .with_columns(
                 treatment_int=pl.col('treatment_id').list.eval(pl.element().cast(pl.Int32)),
@@ -48,22 +50,20 @@ def generate_data_maq(n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
 
 def generate_data(n: int, k: int) -> None:
     print(f"Generating data for n={n}, k={k}")
-    base_path = Path('data') / f'{n=}_{k=}'
 
-    (base_path / 'sparse_maq').mkdir(parents=True, exist_ok=True)
-    (base_path / 'maq').mkdir(parents=True, exist_ok=True)
+    Path('data').mkdir(exist_ok=True)
 
     print("  Generating MAQ data...")
     reward, cost = generate_data_maq(n, k)
-    np.save(base_path / 'maq' / 'reward.npy', reward)
-    np.save(base_path / 'maq' / 'cost.npy', cost)
+    np.save(Path('data') / 'reward.npy', reward)
+    np.save(Path('data') / 'cost.npy', cost)
     print("  MAQ data generation complete")
 
     print("  Generating sparse MAQ data...")
     treatments, patients, df = generate_data_sparse_maq(n, k)
-    treatments.write_parquet(base_path / 'sparse_maq' / 'treatments.parquet')
-    patients.write_parquet(base_path / 'sparse_maq' / 'patients.parquet')
-    df.write_parquet(base_path / 'sparse_maq' / 'data.parquet')
+    treatments.write_parquet(Path('data') / 'treatments.parquet')
+    patients.write_parquet(Path('data') / 'patients.parquet')
+    df.write_parquet(Path('data') / 'data.parquet')
     print("  Sparse MAQ data generation complete")
 
 if __name__ == '__main__':
