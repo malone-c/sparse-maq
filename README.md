@@ -10,6 +10,8 @@ Instead of using a dense matrix representation, this implementation uses variabl
 ### Prospective Evaluation
 Unlike the original MAQ implementation which uses off-policy evaluation (OPE) with historical data, this implementation performs prospective evaluation using the predictions that drive the allocation. This makes it more suitable for forward-looking treatment allocation scenarios, and less suitable for model evaluation.
 
+For better memory management, only prospective allocations are supported. Advanced off-policy evaluation methods such as inverse propensity score (IPS) weighting for historical data are not available in this implementation.
+
 ### Memory Efficiency
 - Minimised data copying throughout the allocation pipeline
 - Arrow-based interface allows zero-copy data transfer from inputs
@@ -26,6 +28,8 @@ This implementation is ideal when:
 - Patients have variable treatment eligibility (not all treatments available to all patients)
 - You're working with large-scale datasets from OLAP systems
 - You want prospective allocation based on predictions rather than historical counterfactuals
+
+The implementation is optimized for large datasets, with efficient memory usage and processing performance at scale.
 
 # References
 
