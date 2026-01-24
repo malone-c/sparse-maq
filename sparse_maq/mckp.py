@@ -1,15 +1,34 @@
 import numpy as np
+from numpy import typing as npt
 import pyarrow as pa
 import polars as pl
 from typing import cast
+
 import gc
 import time
 import tracemalloc
 import os
+import math
+
+from dataclasses import dataclass
+from beartype import beartype
 
 from .ext import solver_cpp
 
+@beartype
+@dataclass
+class SolverOutput():
+    spend: npt.NDArray[np.float64]
+    gain: npt.NDArray[np.float64]
+    ipath: npt.NDArray[np.int64]
+    kpath: npt.NDArray[np.int64]
+    complete_path: bool
+    # treatment_id_mapping: npt.NDArray[np.int64]
+
 class Solver:
+    budget: float = math.inf
+    solver_output: SolverOutput
+
     def __init__(self, unique_patients: pl.DataFrame, unique_treatments: pl.DataFrame):
         assert unique_patients.columns == ['patient_id']
         assert unique_treatments.columns == ['treatment_id']
@@ -24,24 +43,19 @@ class Solver:
                 .vstack(pl.DataFrame({'treatment_id': 'dns', 'treatment_num': 0})) # Add DNS back as 0
         )
 
-        self._path = None
-        self._is_fit = False
-        self.budget = None
-
     def fit(
         self,
         data: pl.DataFrame,
-        budget: np.float64 = np.finfo(np.float64).max,
+        budget: float = 0.0,
         n_threads: int = 0,
-    ):
+    ) -> SolverOutput:
         """Solve the multi-armed knapsack problem using a path algorithm."""
         # TODO: Data validation
-            # Check typing of columns (list types)
-            # Check inner arrays have consistent lengths across outer arrays
-                # e.g. all(len(treatment_id_arrays[i]) == len(reward_arrays[i]) == len(cost_arrays[i]) for i in range(len(treatment_id_arrays)))
-            # Check for nans/nulls
+        # Check typing of columns (list types)
+        # Check inner arrays have consistent lengths across outer arrays
+        # e.g. all(len(treatment_id_arrays[i]) == len(reward_arrays[i]) == len(cost_arrays[i]) for i in range(len(treatment_id_arrays)))
+        # Check for nans/nulls
 
-        assert np.isscalar(budget), "budget should be a scalar."
         assert n_threads >= 0, "n_threads should be >=0."
 
         self.budget = budget
@@ -64,7 +78,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 1a - select: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  size after select: {treatment_nums.estimated_size()/1024**3:.2f} GB")
             t_last = t_current
@@ -74,7 +88,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 1b - explode: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  size after explode: {treatment_nums.estimated_size()/1024**3:.2f} GB")
             print(f"  rows after explode: {len(treatment_nums):,}")
@@ -85,7 +99,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 1c - join: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  size after join: {treatment_nums.estimated_size()/1024**3:.2f} GB")
             t_last = t_current
@@ -98,7 +112,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 1d-e - select/group_by: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  final treatment_nums size: {treatment_nums.estimated_size()/1024**3:.2f} GB")
             t_last = t_current
@@ -115,7 +129,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 2 - data_join_sort: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  data size: {data.estimated_size()/1024**3:.2f} GB")
             t_last = t_current
@@ -129,7 +143,7 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 3 - arrow_conversion: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  table size: {table.nbytes/1024**3:.2f} GB")
             t_last = t_current
@@ -143,12 +157,11 @@ class Solver:
 
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 4 - type_casting: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             t_last = t_current
-
-        # PHASE 5: C++ solver call
-        self._path = solver_cpp(
+        
+        solver_output_dict: dict = solver_cpp(
             treatment_id_arrays,
             reward_arrays,
             cost_arrays,
@@ -156,33 +169,34 @@ class Solver:
             n_threads,
         )
 
+        self.solver_output = SolverOutput(**solver_output_dict)
+
         if PROFILE:
             t_current = time.perf_counter()
-            current, peak = tracemalloc.get_traced_memory()
+            _, peak = tracemalloc.get_traced_memory()
             print(f"Phase 5 - cpp_solver: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"\nTotal time: {t_current - t_start:.2f}s")
             print(f"Total peak memory: {peak/1024**3:.2f} GB")
             tracemalloc.stop()
 
         self._is_fit = True
-        return self._path
+        return self.solver_output
 
-    def predict(self, budget):
+    def predict(self, budget: float):
         """Get the treatment allocation for a given budget."""
-        assert np.isscalar(budget), "spend should be a scalar."
         assert self._is_fit, "Solver object is not fit."
-        if not self._path["complete_path"] and budget > self.budget:
+        if not self.solver_output.complete_path and budget > self.budget:
             raise ValueError("Path is not fit beyond given spend level. Refit with a larger budget.")
         
         # Idea: Get the last setting for each patient, before the spend exceeds the budget
         # For any patient we don't see, set their treatment to 0 (control)
         return (
             pl.DataFrame({
-                'spend': self._path["spend"],
-                'gain': self._path["gain"],
-                'patient_num': self._path["ipath"],
-                'treatment_num': self._path["kpath"],
-                'time': list(range(len(self._path["spend"]))),
+                'spend': self.solver_output.spend,
+                'gain': self.solver_output.gain,
+                'patient_num': self.solver_output.ipath,
+                'treatment_num': self.solver_output.kpath,
+                'time': list(range(len(self.solver_output.spend))),
             })
             .filter(pl.col('spend') <= budget)
             .group_by('patient_num')
@@ -197,29 +211,24 @@ class Solver:
     def path_(self):
         """Get the path of the solver."""
         assert self._is_fit, "Solver object is not fit."
-        return cast(dict, self._path)
+        return cast(dict, self.solver_output)
 
     @property
     def path_spend_(self):
         assert self._is_fit, "Solver object is not fit."
-        return self._path["spend"]
+        return self.solver_output.spend
 
     @property
     def path_gain_(self):
         assert self._is_fit, "Solver object is not fit."
-        return self._path["gain"]
-
-    @property
-    def path_std_err_(self):
-        assert self._is_fit, "Solver object is not fit."
-        return self._path["std_err"]
+        return self.solver_output.gain
 
     @property
     def path_allocated_unit_(self):
         assert self._is_fit, "Solver object is not fit."
-        return self._path["ipath"]
+        return self.solver_output.ipath
 
     @property
     def path_allocated_arm_(self):
         assert self._is_fit, "Solver object is not fit."
-        return self._path["kpath"]
+        return self.solver_output.kpath

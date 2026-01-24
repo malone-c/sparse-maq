@@ -1,6 +1,7 @@
 import polars as pl
 import pyarrow as pa
 import sparse_maq
+from sparse_maq.mckp import SolverOutput
 
 
 # Create test data with more customers and smaller numbers
@@ -60,16 +61,16 @@ unique_treatment_ids = table.select(pl.col('treatment_id').explode().unique())
 print(unique_patient_ids)
 solver = sparse_maq.Solver(unique_patient_ids, unique_treatment_ids)
 
-results = solver.fit(
+results: SolverOutput = solver.fit(
     table,
     budget_constraint,
 )
 
-assert results['spend'][-2] == 47.
-assert results['gain'][-2] == 65.
+assert results.spend[-2] == 47.
+assert results.gain[-2] == 65.
 
 print(results)
 
-print(f"{results['spend'][-2]=}")
-print(f"{results['gain'][-2]=}")
+print(f"{results.spend[-2]=}")
+print(f"{results.gain[-2]=}")
 

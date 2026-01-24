@@ -1,0 +1,4 @@
+include LICENSE
+include README.md
+recursive-include sparse_maq *.pyx *.pxd
+recursive-include core/src *.h *.hpp

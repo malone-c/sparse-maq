@@ -1,0 +1,5 @@
+- Manage treatment ID mapping in C++ to elide expensive Polars explode step
+- Make pyarrow -> C++ vector conversion truly zero-copy
+- Move from Cython to [nanobind](https://nanobind.readthedocs.io/)
+- Support both numpy and arrow inputs
+- Support both int and str treatment/patient IDs (allows zero-copy Polars->numpy conversion)
