@@ -16,4 +16,17 @@ dependencies = [
     "pyarrow>=20.0.0,<21",
     "numpy>=2.2.4",
     "polars>=1.27.1",
+    "ipykernel>=7.1.0",
 ]
+
+[dependency-groups]
+benchmarking = [
+    "maq",
+    "matplotlib>=3.10.8",
+]
+
+[tool.uv.sources]
+maq = { git = "https://github.com/grf-labs/maq.git", subdirectory = "python-package", rev = "py0.2.2" }
+
+[tool.uv.extra-build-dependencies]
+maq = ["numpy>=2.0"]

@@ -10,6 +10,8 @@ Instead of using a dense matrix representation, this implementation uses variabl
 ### Prospective Evaluation
 Unlike the original MAQ implementation which uses off-policy evaluation (OPE) with historical data, this implementation performs prospective evaluation using the predictions that drive the allocation. As such, this implementation is **not** suitable for model evaluation.
 
+For better memory management, only prospective allocations are supported. Advanced off-policy evaluation methods such as inverse propensity score (IPS) weighting for historical data are not available in this implementation.
+
 ### Memory Efficiency
 - Minimised data copying throughout the allocation pipeline
 - Arrow-based interface allows zero-copy data transfer from inputs
@@ -30,10 +32,12 @@ A simple benchmark performed with simulated data:
 * All rewards and costs distributed as iid standard exponential
   * Patient treatment eligibility distributed as Bernoulli(0.05) -- i.e. each patient eligible for ~25 randomly selected treatments
 
+
 | Solver | Execution Time | Peak Memory |
 |--------|---------------|-------------|
 | `maq` | 27.60s | 12,240,548 KB (12.2 GB) |
 | `sparse_maq` | 11.37s | 7,525,692 KB (7.5 GB) |
+
 
 # References
 

@@ -197,3 +197,4 @@ cython_debug/
 
 _tmp*
 data/
+benchmarking/results/
