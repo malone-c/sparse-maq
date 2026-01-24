@@ -5,7 +5,7 @@ from libc.stdint cimport uint32_t
 
 ctypedef pair[vector[vector[double]], vector[vector[size_t]]] solution_path
 
-cdef extern from "MAQ.h" namespace "sparse_maq":
+cdef extern from "pipeline.h" namespace "sparse_maq":
     solution_path run(
         vector[vector[uint32_t]]& treatment_id_arrays,
         vector[vector[double]]& reward_arrays,

@@ -1,7 +1,6 @@
 #ifndef MAQ_COMPUTE_PATH_HPP
 #define MAQ_COMPUTE_PATH_HPP
 
-#include <cmath>
 #include <cstddef>
 #include <queue>
 #include <vector>

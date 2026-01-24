@@ -1,6 +1,10 @@
 #ifndef MAQ_H
 #define MAQ_H
 
+#include "preprocess_data.hpp"
+#include "convex_hull.hpp"
+#include "compute_path.hpp"
+
 #ifndef NDEBUG
   #define DEBUG_PRINT(x) std::cout << x << std::endl
 #else
@@ -10,8 +14,6 @@
 // Fork of https://github.com/grf-labs/maq
 // Distributed under the MIT License.
 
-#include "Data.hpp"
-#include "Solver.hpp"
 #include <iostream>
 #include <chrono>
 #include <cstdlib>
@@ -43,7 +45,9 @@ solution_path run(
   }
 
   DEBUG_PRINT("Initializing solver");
-  Solver solver(treatment_arrays, budget);  // calls convex_hull in constructor
+
+  convex_hull(treatment_arrays); // Prune in-place
+
 
   auto t2 = std::chrono::high_resolution_clock::now();
   if (PROFILE) {
@@ -51,13 +55,14 @@ solution_path run(
     std::cout << "  C++: convex_hull (Solver init): " << convex_time.count() << "s" << std::endl;
   }
 
+
   DEBUG_PRINT("Fitting solver");
-  solution_path path = solver.fit();  // calls compute_path
+  solution_path path = compute_path(treatment_arrays, budget);
 
   auto t3 = std::chrono::high_resolution_clock::now();
   if (PROFILE) {
     std::chrono::duration<double> compute_time = t3 - t2;
-    std::cout << "  C++: compute_path (solver.fit): " << compute_time.count() << "s" << std::endl;
+    std::cout << "  C++: compute_path: " << compute_time.count() << "s" << std::endl;
   }
 
   return path;

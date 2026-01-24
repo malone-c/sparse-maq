@@ -3,11 +3,10 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <numeric>
 #include <vector>
 #include <deque>
 
-#include "Data.hpp"
+#include "preprocess_data.hpp"
 
 /*
 Find the upper left convex hull on the (cost, reward) plane for each unit. This takes
