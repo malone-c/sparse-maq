@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=2.2.4",
     "polars>=1.27.1",
     "ipykernel>=7.1.0",
+    "pydantic>=2.12.5",
 ]
 
 [dependency-groups]
