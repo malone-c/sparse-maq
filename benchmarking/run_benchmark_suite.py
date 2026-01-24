@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""
-Benchmarking Suite Orchestrator
 
-Runs a grid of benchmarks measuring speed and peak memory usage
-of maq vs sparse_maq solvers across varying dataset sizes.
-
-Usage:
-    uv run benchmarking/run_benchmark_suite.py
-    uv run benchmarking/run_benchmark_suite.py --config path/to/config.yaml
-    uv run benchmarking/run_benchmark_suite.py --output-dir path/to/results
-"""
 import itertools
 import subprocess
 import sys
@@ -20,7 +10,7 @@ from typing import Any
 
 import polars as pl
 
-from generate_data_v2 import generate_data
+from generate_data import generate_data
 
 
 def parse_time_output(stderr: str) -> dict[str, Any]:
@@ -79,7 +69,7 @@ def parse_time_output(stderr: str) -> dict[str, Any]:
     return metrics
 
 def run_single_benchmark(
-        n: int, k: int, p: float, solver: str, temp_dir: Path
+    n: int, k: int, p: float, solver: str, temp_dir: Path
 ) -> dict[str, Any]:
     """
     Execute a single benchmark with GNU time wrapper.

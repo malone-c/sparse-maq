@@ -4,15 +4,10 @@ import polars as pl
 import numpy as np
 
 # %% data generation fn
-def sample_treatment_eligibility_set(k: int) -> np.ndarray:
-    subset_size = np.random.randint(1, k + 1)
-    indices = np.random.choice(k, subset_size, replace=False)
-    treatments = np.zeros(k, dtype=int)
-    treatments[indices] = 1
-    return treatments
+def sample_treatment_eligibility_set(k: int, p: float) -> np.ndarray:
+    return np.random.binomial(n=1, p=p, size=k)
 
-
-def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+def generate_data_sparse_maq(n: int, k: int, p: float) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     unique_treatment_ids = np.array([str(i) for i in range(k)])
     unique_treatment_ids_df = pl.DataFrame({'treatment_id': [str(i) for i in range(k)]})
     unique_patient_ids_df = pl.DataFrame({'patient_id': np.arange(n)})
@@ -20,7 +15,7 @@ def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame
         pl.DataFrame({'patient_id': np.arange(n)})
             .with_columns(
                 treatment_id=pl.col('patient_id').map_elements(
-                    lambda _: unique_treatment_ids[sample_treatment_eligibility_set(k).astype(bool)]
+                    lambda _: unique_treatment_ids[sample_treatment_eligibility_set(k, p).astype(bool)]
                 )
             )
             .with_columns(
@@ -32,8 +27,8 @@ def generate_data_sparse_maq(n: int, k: int) -> tuple[pl.DataFrame, pl.DataFrame
     return unique_treatment_ids_df, unique_patient_ids_df, df
 
 
-def generate_data_maq(n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
-    eligibility = np.concatenate([sample_treatment_eligibility_set(k).reshape(1, -1) for _ in range(n)], axis=0)
+def generate_data_maq(n: int, k: int, p: float) -> tuple[np.ndarray, np.ndarray]:
+    eligibility = np.concatenate([sample_treatment_eligibility_set(k, p).reshape(1, -1) for _ in range(n)], axis=0)
     n_to_generate = np.sum(eligibility)
     random_rewards = np.random.standard_exponential(n_to_generate)
     random_costs = np.random.standard_exponential(n_to_generate)
@@ -48,26 +43,30 @@ def generate_data_maq(n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
     return reward, cost
 
 
-def generate_data(n: int, k: int) -> None:
+def generate_data(n: int, k: int, p: float, temp_dir: Path, solver: str) -> None:
     print(f"Generating data for n={n}, k={k}")
 
-    Path('data').mkdir(exist_ok=True)
+    temp_dir.mkdir(exist_ok=True)
+    if solver == 'maq':
+        print("  Generating MAQ data...")
+        reward, cost = generate_data_maq(n, k, p)
+        np.save(temp_dir / 'reward.npy', reward)
+        np.save(temp_dir / 'cost.npy', cost)
+        print("  MAQ data generation complete")
 
-    print("  Generating MAQ data...")
-    reward, cost = generate_data_maq(n, k)
-    np.save(Path('data') / 'reward.npy', reward)
-    np.save(Path('data') / 'cost.npy', cost)
-    print("  MAQ data generation complete")
+    elif solver == 'sparse_maq':
+        print("  Generating sparse MAQ data...")
+        treatments, patients, df = generate_data_sparse_maq(n, k, p)
+        treatments.write_parquet(temp_dir / 'treatments.parquet')
+        patients.write_parquet(temp_dir / 'patients.parquet')
+        df.write_parquet(temp_dir / 'data.parquet')
+        print("  Sparse MAQ data generation complete")
 
-    print("  Generating sparse MAQ data...")
-    treatments, patients, df = generate_data_sparse_maq(n, k)
-    treatments.write_parquet(Path('data') / 'treatments.parquet')
-    patients.write_parquet(Path('data') / 'patients.parquet')
-    df.write_parquet(Path('data') / 'data.parquet')
-    print("  Sparse MAQ data generation complete")
-
+    else:
+        raise Exception('Give a proper value of solver')
 if __name__ == '__main__':
-    generate_data(1_000_000, 500)
+    pass
+    # generate_data(n=100_000, k=100, p=0.1, temp_dir=Path('data') / 'temp', solver='maq')
 
 
 
