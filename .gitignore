@@ -40,11 +40,9 @@ __pycache__/
 
 # C extensions
 *.so
-*.cpp
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -61,6 +59,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+build/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
