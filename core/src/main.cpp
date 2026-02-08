@@ -10,10 +10,6 @@ int main() {
   std::cout << "========================================" << std::endl;
   std::cout << std::endl;
 
-  // Example: Healthcare treatment allocation problem
-  // We have 3 patients, each with multiple treatment options
-  // Goal: Maximize total reward (health improvement) within a budget
-
   std::vector<std::vector<uint32_t>> treatment_ids = {
     {0, 1, 2, 3},     // Patient 0: 4 treatment options (including no-treatment = 0)
     {0, 1, 2},        // Patient 1: 3 treatment options

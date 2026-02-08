@@ -23,7 +23,7 @@ class SolverOutput():
     ipath: npt.NDArray[np.int64]
     kpath: npt.NDArray[np.int64]
     complete_path: bool
-    # treatment_id_mapping: npt.NDArray[np.int64]
+    # treatment_id_mapping: npt.NDArray[np.str_]
 
 class Solver:
     budget: float = math.inf

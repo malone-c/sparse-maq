@@ -21,7 +21,7 @@
 namespace sparse_maq {
 
 solution_path run(
-  std::vector<std::vector<uint32_t>>& treatment_id_arrays,
+  std::vector<std::vector<std::string>>& treatment_id_arrays,
   std::vector<std::vector<double>>& reward_arrays,
   std::vector<std::vector<double>>& cost_arrays,
   double budget
@@ -32,7 +32,7 @@ solution_path run(
   auto t0 = std::chrono::high_resolution_clock::now();
 
   DEBUG_PRINT("Data successfully pre-processed");
-  std::vector<std::vector<TreatmentView>> treatment_arrays = process_data(
+  auto [treatment_arrays, treatment_id_mapping] = process_data(
     treatment_id_arrays,
     reward_arrays,
     cost_arrays

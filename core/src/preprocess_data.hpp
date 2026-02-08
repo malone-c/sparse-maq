@@ -2,52 +2,64 @@
 #define MAQ_DATA_HPP
 
 #include <cstddef>
+#include <unordered_set>
 #include <vector>
 
 namespace sparse_maq {
 
-  class TreatmentView {
-    public:
-      TreatmentView(uint32_t& id, double& reward, double& cost) 
-        : id_ptr(&id), reward_ptr(&reward), cost_ptr(&cost) {}
+  struct Treatment { // TODO: Consider storing references in here instead of pointers for cache locality
+    Treatment(size_t id, double reward, double cost)
+      : id(id), reward(reward), cost(cost) {}
 
-      // TODO: Use modern ownership semantics instead
-      uint32_t get_id() const { return *id_ptr; }
-      double get_reward() const { return *reward_ptr; }
-      double get_cost() const { return *cost_ptr; }
-
-    private:
-      uint32_t* id_ptr;
-      double* reward_ptr;
-      double* cost_ptr;
+    size_t id;
+    double reward;
+    double cost;
   };
 
-  std::vector<std::vector<TreatmentView>> process_data(
-    std::vector<std::vector<uint32_t>>& treatment_id_arrays,
+  std::pair<
+    std::vector<std::vector<Treatment>>,
+    std::vector<std::string>
+  > process_data(
+    std::vector<std::vector<std::string>>& treatment_id_arrays,
     std::vector<std::vector<double>>& reward_arrays,
     std::vector<std::vector<double>>& cost_arrays
   ) {
+    std::unordered_map<std::string, size_t> treatment_id_to_num;
+    std::vector<std::string> treatment_num_to_id;
+    size_t cur_treatment_num {0};
+
     size_t num_patients = treatment_id_arrays.size();
-    std::vector<std::vector<TreatmentView>> treatment_view_arrays;
+    std::vector<std::vector<Treatment>> treatment_view_arrays;
     treatment_view_arrays.reserve(num_patients);
 
+    // Construct treatment view arrays
     for (size_t i = 0; i < num_patients; ++i) {
       size_t num_treatments = treatment_id_arrays[i].size();
-      treatment_id_arrays[i].reserve(num_treatments);
-      std::vector<TreatmentView> treatment_views;
-      treatment_views.reserve(num_treatments);
+      std::vector<Treatment> treatments;
+      treatments.reserve(num_treatments);
 
       for (size_t j = 0; j < num_treatments; ++j) {
-        treatment_views.emplace_back(
-          treatment_id_arrays[i][j],
+        const std::string& treatment_id = treatment_id_arrays[i][j];
+        if (!treatment_id_to_num.contains(treatment_id)) {
+          treatment_id_to_num.emplace(treatment_id, cur_treatment_num);
+          treatment_num_to_id.emplace_back(treatment_id);
+          ++cur_treatment_num;
+        }
+
+        treatments.emplace_back(
+          treatment_id_to_num[treatment_id],
           reward_arrays[i][j],
           cost_arrays[i][j]
         );
       }
 
-      treatment_view_arrays.push_back(std::move(treatment_views));
+      treatment_view_arrays.push_back(std::move(treatments));
     }
-    return treatment_view_arrays;
+
+    return {
+      treatment_view_arrays,
+      treatment_num_to_id
+    };
   }
 } // namespace sparse_maq
 

@@ -19,12 +19,12 @@ TEST_CASE("E2E test matching Python test_mckp.py") {
   */
 
   // Set up test data matching Python test
-  std::vector<std::vector<uint32_t>> treatment_ids = {
-    {0, 1, 2, 3},     // patient a: 4 treatments
-    {0, 1, 2},        // patient b: 3 treatments
-    {0, 1, 2},        // patient c: 3 treatments
-    {0, 1, 2},        // patient d: 3 treatments
-    {0, 1, 2}         // patient e: 3 treatments
+  std::vector<std::vector<std::string>> treatment_ids = {
+    {"0", "1", "2", "3"},
+    {"0", "1", "2"},
+    {"0", "1", "2"},
+    {"0", "1", "2"},
+    {"0", "1", "2"} 
   };
 
   std::vector<std::vector<double>> rewards = {
@@ -85,9 +85,9 @@ TEST_CASE("E2E test matching Python test_mckp.py") {
 }
 
 TEST_CASE("E2E test with simple two-patient case") {
-  std::vector<std::vector<uint32_t>> treatment_ids = {
-    {1, 2},
-    {3, 4}
+  std::vector<std::vector<std::string>> treatment_ids = {
+    {"1", "2"},
+    {"3", "4"}
   };
 
   std::vector<std::vector<double>> rewards = {
@@ -128,8 +128,8 @@ TEST_CASE("E2E test with simple two-patient case") {
 
 TEST_CASE("E2E test with dominated treatments removed") {
   // Patient 0 has a dominated treatment (id=2)
-  std::vector<std::vector<uint32_t>> treatment_ids = {
-    {1, 2, 3}
+  std::vector<std::vector<std::string>> treatment_ids = {
+    {"1", "2", "3"}
   };
 
   std::vector<std::vector<double>> rewards = {

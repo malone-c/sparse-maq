@@ -13,9 +13,9 @@ TEST_CASE("QueueElement priority comparison works correctly") {
   double reward1 = 10.0, reward2 = 20.0, reward3 = 30.0;
   double cost1 = 5.0, cost2 = 10.0, cost3 = 15.0;
 
-  TreatmentView t1(id1, reward1, cost1);
-  TreatmentView t2(id2, reward2, cost2);
-  TreatmentView t3(id3, reward3, cost3);
+  Treatment t1(id1, reward1, cost1);
+  Treatment t2(id2, reward2, cost2);
+  Treatment t3(id3, reward3, cost3);
 
   QueueElement e1(0, &t1, 2.0);  // priority 2.0
   QueueElement e2(1, &t2, 5.0);  // priority 5.0
@@ -29,11 +29,11 @@ TEST_CASE("QueueElement priority comparison works correctly") {
 }
 
 TEST_CASE("compute_path returns valid solution_path structure") {
-  std::vector<std::vector<uint32_t>> ids = {{1, 2}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2"}};
   std::vector<std::vector<double>> rewards = {{10.0, 20.0}};
   std::vector<std::vector<double>> costs = {{5.0, 10.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 10.0);
@@ -45,9 +45,9 @@ TEST_CASE("compute_path returns valid solution_path structure") {
 }
 
 TEST_CASE("compute_path with small dataset") {
-  std::vector<std::vector<uint32_t>> ids = {
-    {1, 2},
-    {3, 4}
+  std::vector<std::vector<std::string>> ids = {
+    {"1", "2"},
+    {"3", "4"}
   };
   std::vector<std::vector<double>> rewards = {
     {10.0, 18.0},
@@ -58,7 +58,7 @@ TEST_CASE("compute_path with small dataset") {
     {4.0, 8.0}
   };
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 20.0);
@@ -89,11 +89,11 @@ TEST_CASE("compute_path with small dataset") {
 }
 
 TEST_CASE("compute_path respects budget constraint") {
-  std::vector<std::vector<uint32_t>> ids = {{1, 2, 3}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2", "3"}};
   std::vector<std::vector<double>> rewards = {{10.0, 20.0, 30.0}};
   std::vector<std::vector<double>> costs = {{5.0, 15.0, 25.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 10.0);
@@ -115,11 +115,11 @@ TEST_CASE("compute_path respects budget constraint") {
 }
 
 TEST_CASE("compute_path with zero budget returns empty path") {
-  std::vector<std::vector<uint32_t>> ids = {{1, 2}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2"}};
   std::vector<std::vector<double>> rewards = {{10.0, 20.0}};
   std::vector<std::vector<double>> costs = {{5.0, 10.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 0.0);
@@ -134,9 +134,9 @@ TEST_CASE("compute_path with zero budget returns empty path") {
 }
 
 TEST_CASE("compute_path with large budget covers all treatments") {
-  std::vector<std::vector<uint32_t>> ids = {
-    {1, 2},
-    {3, 4}
+  std::vector<std::vector<std::string>> ids = {
+    {"1", "2"},
+    {"3", "4"}
   };
   std::vector<std::vector<double>> rewards = {
     {10.0, 20.0},
@@ -147,7 +147,7 @@ TEST_CASE("compute_path with large budget covers all treatments") {
     {7.0, 14.0}
   };
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   // Budget large enough for all treatments
@@ -161,11 +161,11 @@ TEST_CASE("compute_path with large budget covers all treatments") {
 }
 
 TEST_CASE("compute_path with single patient multiple treatments") {
-  std::vector<std::vector<uint32_t>> ids = {{1, 2, 3}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2", "3"}};
   std::vector<std::vector<double>> rewards = {{10.0, 25.0, 35.0}};
   std::vector<std::vector<double>> costs = {{5.0, 15.0, 25.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 20.0);
@@ -184,10 +184,10 @@ TEST_CASE("compute_path with single patient multiple treatments") {
 }
 
 TEST_CASE("compute_path with all patients one treatment each") {
-  std::vector<std::vector<uint32_t>> ids = {
-    {1},
-    {2},
-    {3}
+  std::vector<std::vector<std::string>> ids = {
+    {"1"},
+    {"2"},
+    {"3"}
   };
   std::vector<std::vector<double>> rewards = {
     {10.0},
@@ -200,7 +200,7 @@ TEST_CASE("compute_path with all patients one treatment each") {
     {10.0}
   };
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 15.0);
@@ -220,11 +220,11 @@ TEST_CASE("compute_path with all patients one treatment each") {
 }
 
 TEST_CASE("compute_path accumulates spend and gain correctly") {
-  std::vector<std::vector<uint32_t>> ids = {{1}, {2}};
+  std::vector<std::vector<std::string>> ids = {{"1"}, {"2"}};
   std::vector<std::vector<double>> rewards = {{10.0}, {8.0}};
   std::vector<std::vector<double>> costs = {{5.0}, {4.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 10.0);
@@ -244,11 +244,11 @@ TEST_CASE("compute_path accumulates spend and gain correctly") {
 
 TEST_CASE("compute_path handles patient upgrades") {
   // Patient 0 has two treatments with increasing cost/reward
-  std::vector<std::vector<uint32_t>> ids = {{1, 2}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2"}};
   std::vector<std::vector<double>> rewards = {{10.0, 25.0}};
   std::vector<std::vector<double>> costs = {{5.0, 12.0}};
 
-  auto treatment_arrays = process_data(ids, rewards, costs);
+  auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
   convex_hull(treatment_arrays);
 
   solution_path result = compute_path(treatment_arrays, 15.0);

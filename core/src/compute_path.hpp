@@ -13,12 +13,12 @@ typedef std::pair<std::vector<std::vector<double>>, std::vector<std::vector<size
 struct QueueElement {
   QueueElement(
     size_t unit,
-    const TreatmentView* treatment, 
+    const Treatment* treatment, 
     double priority
   ) : unit(unit), treatment_ptr(treatment), priority(priority) {}  // Fix: initialize treatment_ptr correctly
 
   size_t unit;
-  const TreatmentView* treatment_ptr;  // Store const pointer instead of copy
+  const Treatment* treatment_ptr;  // Store const pointer instead of copy
   double priority;
 };
 
@@ -27,7 +27,7 @@ bool operator <(const QueueElement& lhs, const QueueElement& rhs) {
 }
 
 solution_path compute_path(
-  const std::vector<std::vector<TreatmentView>>& treatment_arrays,
+  const std::vector<std::vector<Treatment>>& treatment_arrays,
   double budget
 ) {
   std::vector<std::vector<double>> spend_gain(3); // 3rd entry: SEs
@@ -41,8 +41,8 @@ solution_path compute_path(
   for (size_t unit = 0; unit < treatment_arrays.size(); unit++) {
     if (treatment_arrays[unit].empty()) { continue; }
 
-    const TreatmentView& treatment_ref = treatment_arrays[unit][0];
-    double priority = treatment_ref.get_reward() / treatment_ref.get_cost();
+    const Treatment& treatment_ref = treatment_arrays[unit][0];
+    double priority = treatment_ref.reward / treatment_ref.cost;
     pqueue.emplace(unit, &treatment_ref, priority);
   }
 
@@ -54,25 +54,25 @@ solution_path compute_path(
 
     if (active_arm_indices[top.unit] > 0) { // If assigned before...
       size_t active_arm_index = active_arm_indices[top.unit] - 1;
-      TreatmentView active_arm = treatment_arrays[top.unit][active_arm_index];
-      spend -= active_arm.get_cost();
-      gain -= active_arm.get_reward();
+      Treatment active_arm = treatment_arrays[top.unit][active_arm_index];
+      spend -= active_arm.cost;
+      gain -= active_arm.reward;
     }
 
     // assign
-    spend += top.treatment_ptr->get_cost();
-    gain += top.treatment_ptr->get_reward();
+    spend += top.treatment_ptr->cost;
+    gain += top.treatment_ptr->reward;
     spend_gain[0].push_back(spend);
     spend_gain[1].push_back(gain);
     i_k_path[0].push_back(top.unit);
-    i_k_path[1].push_back(top.treatment_ptr->get_id());
+    i_k_path[1].push_back(top.treatment_ptr->id);
     active_arm_indices[top.unit]++;
 
     size_t next_entry = active_arm_indices[top.unit];
     if (treatment_arrays[top.unit].size() > next_entry) { // More treatments available for this unit?
       // To this:
-      const TreatmentView& upgrade_ref = treatment_arrays[top.unit][next_entry];
-      double priority = (upgrade_ref.get_reward() - top.treatment_ptr->get_reward()) / (upgrade_ref.get_cost() - top.treatment_ptr->get_cost());
+      const Treatment& upgrade_ref = treatment_arrays[top.unit][next_entry];
+      double priority = (upgrade_ref.reward - top.treatment_ptr->reward) / (upgrade_ref.cost - top.treatment_ptr->cost);
       pqueue.emplace(top.unit, &upgrade_ref, priority);
     }
 

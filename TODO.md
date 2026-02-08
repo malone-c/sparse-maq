@@ -1,3 +1,4 @@
+- Write cpp tests to speed up development
 - Manage treatment ID mapping in C++ to elide expensive Polars explode step
 - Make pyarrow -> C++ vector conversion truly zero-copy
 - Move from Cython to [nanobind](https://nanobind.readthedocs.io/)
@@ -6,3 +7,4 @@
 - Support both numpy and arrow inputs
   - [numpy CAN be zero-copy](https://docs.pola.rs/py-polars/html/reference/dataframe/api/polars.DataFrame.to_numpy.html)
 - Support both int and str treatment/patient IDs (allows zero-copy Polars->numpy conversion)
+- Patient treatment sets are not contiguous across patients, leads to cache misses in convex_hull.hpp. Replace `vector<vector<TreatmentView>>` with flattened array

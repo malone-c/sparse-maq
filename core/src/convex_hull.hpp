@@ -22,44 +22,44 @@ proceeds by checking if point k should be replaced by or augmented by point l.
 namespace sparse_maq {
 
 inline bool candidate_dominates_last_selection(
-  const std::vector<TreatmentView>& selections,
-  TreatmentView candidate
+  const std::vector<Treatment>& selections,
+  Treatment candidate
 ) {
   uint32_t zero_id_value = 0;
   double zero_reward_value = 0.0;
   double zero_cost_value = 0.0;
-  TreatmentView arm_j = TreatmentView(zero_id_value, zero_reward_value, zero_cost_value); // dummy point
+  Treatment arm_j = Treatment(zero_id_value, zero_reward_value, zero_cost_value); // dummy point
 
   if (selections.size() >= 2) {
     arm_j = selections[selections.size() - 2]; // next to top
   }
-  TreatmentView arm_k = selections[selections.size() - 1]; // top
-  if (arm_k.get_reward() <= 0) {
+  Treatment arm_k = selections[selections.size() - 1]; // top
+  if (arm_k.reward <= 0) {
     return true;
   }
 
   // C++: a/0 = Inf if a > 0, a/0 = -Inf if a <0, and 0/0 = NaN (all logical operators on NaN evaluate to false)
   // return (reward_l - reward_k) / (cost_l - cost_k) > (reward_k - reward_j) / (cost_k - cost_j);
-  return (candidate.get_reward() - arm_k.get_reward()) * (arm_k.get_cost() - arm_j.get_cost()) > (arm_k.get_reward() - arm_j.get_reward()) * (candidate.get_cost() - arm_k.get_cost());
+  return (candidate.reward - arm_k.reward) * (arm_k.cost - arm_j.cost) > (arm_k.reward - arm_j.reward) * (candidate.cost - arm_k.cost);
 }
 // TODO: Implement multithreading
-void convex_hull(std::vector<std::vector<TreatmentView>>& treatment_arrays) {
+void convex_hull(std::vector<std::vector<Treatment>>& treatment_arrays) {
   
   for (size_t unit = 0; unit < treatment_arrays.size(); unit++) {
     
     // Copy all the treatments to a queue and clear the original vector
-    std::deque<TreatmentView> candidates(treatment_arrays[unit].begin(), treatment_arrays[unit].end());
+    std::deque<Treatment> candidates(treatment_arrays[unit].begin(), treatment_arrays[unit].end());
     
-    std::vector<TreatmentView>& selections = treatment_arrays[unit];
+    std::vector<Treatment>& selections = treatment_arrays[unit];
     selections.clear();
     
     // Sort by increasing cost
-    std::sort(candidates.begin(), candidates.end(), [&](const TreatmentView lhs, const TreatmentView rhs) {
-      return lhs.get_cost() < rhs.get_cost();
+    std::sort(candidates.begin(), candidates.end(), [&](const Treatment lhs, const Treatment rhs) {
+      return lhs.cost < rhs.cost;
     });
     
     // Push first positive reward point onto stack
-    while (candidates.size() > 0 && candidates[0].get_reward() <= 0) {
+    while (candidates.size() > 0 && candidates[0].reward <= 0) {
       candidates.pop_front();
     }
     
@@ -71,15 +71,15 @@ void convex_hull(std::vector<std::vector<TreatmentView>>& treatment_arrays) {
     candidates.pop_front();
     
     while (candidates.size() > 0) {
-      TreatmentView candidate = candidates[0];
+      Treatment candidate = candidates[0];
       candidates.pop_front();
       
       while (selections.size() > 0 && candidate_dominates_last_selection(selections, candidate)) {
         selections.pop_back();
       }
       
-      if (candidate.get_reward() > 0) {
-        if (selections.empty() || candidate.get_reward() > selections.back().get_reward()) {
+      if (candidate.reward > 0) {
+        if (selections.empty() || candidate.reward > selections.back().reward) {
           selections.push_back(candidate);
         }
       }
