@@ -1,8 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from setuptools import setup, find_packages
-from distutils.core import Extension
+from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
 import numpy as np
 import pyarrow as pa
@@ -32,7 +31,6 @@ ext = Extension(
     extra_link_args=LINK_ARGS,
     include_dirs=[str(core_dir), pa.get_include(), np.get_include()],
     library_dirs=[arrow_lib_dir],
-    define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
 )
 
 setup(
