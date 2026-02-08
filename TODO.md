@@ -1,4 +1,7 @@
 - Write cpp tests to speed up development
+- Support multiple budgets
+  - Each treatment has a "treatment type" integer 
+  - Cost state is kept in an array of length `len(unique_treatment_types)`
 - Manage treatment ID mapping in C++ to elide expensive Polars explode step
 - Make pyarrow -> C++ vector conversion truly zero-copy
 - Move from Cython to [nanobind](https://nanobind.readthedocs.io/)
@@ -7,4 +10,5 @@
 - Support both numpy and arrow inputs
   - [numpy CAN be zero-copy](https://docs.pola.rs/py-polars/html/reference/dataframe/api/polars.DataFrame.to_numpy.html)
 - Support both int and str treatment/patient IDs (allows zero-copy Polars->numpy conversion)
-- Patient treatment sets are not contiguous across patients, leads to cache misses in convex_hull.hpp. Replace `vector<vector<TreatmentView>>` with flattened array
+- Patient treatment sets are not contiguous across patients, leads to cache misses in `convex_hull.hpp`. Replace `vector<vector<Treatment>>` with flattened array
+  - Input format is array where each element is `{ treatment_id, reward, cost }`. We store a vector `patient_boundaries` which stores the start and end indices for each patient, and a pointer to their id. This is sorted by start index so we can use binary search to find the patient id for an index in the original data. We also store a boolean array of length `len(data)` which tells us whether a patient-treatment pair was pruned or not.
