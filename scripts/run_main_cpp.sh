@@ -16,8 +16,8 @@ if [ ! -d "core/build" ]; then
   mkdir -p core/build
 fi
 
-# Compile with C++17 standard and include path
-g++ -std=c++17 -I core/src -o core/build/main_cpp core/src/main.cpp
+# Compile with c++20 standard and include path
+g++ -std=c++20 -I core/src -o core/build/main_cpp core/src/main.cpp
 
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✓ Build successful${NC}"

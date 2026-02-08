@@ -38,8 +38,8 @@ TEST_CASE("Treatment stores references correctly") {
 
 TEST_CASE("process_data creates correct Treatment arrays") {
   std::vector<std::vector<std::string>> ids = {
-    {1, 2, 3},
-    {4, 5}
+    {"1", "2", "3"},
+    {"4", "5"}
   };
   std::vector<std::vector<double>> rewards = {
     {10.0, 20.0, 30.0},
@@ -101,7 +101,7 @@ TEST_CASE("process_data handles patient with no treatments") {
 }
 
 TEST_CASE("process_data handles single patient single treatment") {
-  std::vector<std::vector<std::string>> ids = {{1}};
+  std::vector<std::vector<std::string>> ids = {{"1"}};
   std::vector<std::vector<double>> rewards = {{100.0}};
   std::vector<std::vector<double>> costs = {{50.0}};
 
@@ -116,14 +116,14 @@ TEST_CASE("process_data handles single patient single treatment") {
 }
 
 TEST_CASE("process_data references remain valid") {
-  std::vector<std::vector<std::string>> ids = {{1, 2}};
+  std::vector<std::vector<std::string>> ids = {{"1", "2"}};
   std::vector<std::vector<double>> rewards = {{10.0, 20.0}};
   std::vector<std::vector<double>> costs = {{5.0, 10.0}};
 
   auto [treatment_arrays, treatment_id_mapping] = process_data(ids, rewards, costs);
 
   // Modify original data
-  ids[0][0] = 999;
+  ids[0][0] = "999";
   rewards[0][0] = 999.0;
   costs[0][0] = 999.0;
 
@@ -140,10 +140,10 @@ TEST_CASE("process_data references remain valid") {
 
 TEST_CASE("process_data handles multiple patients with varying treatment counts") {
   std::vector<std::vector<std::string>> ids = {
-    {1},
-    {2, 3, 4},
+    {"1"},
+    {"2", "3", "4"},
     {},
-    {5, 6}
+    {"5", "6"}
   };
   std::vector<std::vector<double>> rewards = {
     {10.0},

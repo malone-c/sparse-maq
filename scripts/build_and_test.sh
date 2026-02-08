@@ -24,7 +24,7 @@ fi
 
 # Compiler settings
 CXX=${CXX:-g++}
-CXXFLAGS="-std=c++17 -Wall -Wextra -I core/src"
+CXXFLAGS="-std=c++20 -Wall -Wextra -I core/src"
 
 echo -e "${BLUE}Compiler: ${CXX}${NC}"
 echo -e "${BLUE}Flags: ${CXXFLAGS}${NC}"

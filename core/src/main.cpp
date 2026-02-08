@@ -10,10 +10,10 @@ int main() {
   std::cout << "========================================" << std::endl;
   std::cout << std::endl;
 
-  std::vector<std::vector<uint32_t>> treatment_ids = {
-    {0, 1, 2, 3},     // Patient 0: 4 treatment options (including no-treatment = 0)
-    {0, 1, 2},        // Patient 1: 3 treatment options
-    {0, 1, 2, 3, 4}   // Patient 2: 5 treatment options
+  std::vector<std::vector<std::string>> treatment_ids = {
+    {"0", "1", "2", "3"},     // Patient 0: 4 treatment options (including no-treatment = 0)
+    {"0", "1", "2"},        // Patient 1: 3 treatment options
+    {"0", "1", "2", "3", "4"}   // Patient 2: 5 treatment options
   };
 
   std::vector<std::vector<double>> rewards = {
@@ -105,14 +105,14 @@ int main() {
 
     // Summary of final patient assignments
     std::cout << "Final Patient Assignments:" << std::endl;
-    std::vector<uint32_t> final_assignments(treatment_ids.size(), 0);
+    std::vector<std::string> final_assignments(treatment_ids.size(), 0);
     for (size_t i = 0; i < i_k_path[0].size(); ++i) {
       final_assignments[i_k_path[0][i]] = i_k_path[1][i];
     }
 
     for (size_t i = 0; i < final_assignments.size(); ++i) {
       std::cout << "  Patient " << i << ": Treatment " << final_assignments[i];
-      if (final_assignments[i] > 0) {
+      if (final_assignments[i] != "0") {
         // Find the treatment index in the original arrays
         for (size_t j = 0; j < treatment_ids[i].size(); ++j) {
           if (treatment_ids[i][j] == final_assignments[i]) {
