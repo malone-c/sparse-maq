@@ -8,7 +8,13 @@
 
 namespace sparse_maq {
 
-typedef std::pair<std::vector<std::vector<double>>, std::vector<std::vector<size_t>>> solution_path;
+struct solution_path {
+  std::vector<double> cost_path;
+  std::vector<double> reward_path;
+  std::vector<size_t> i_path;
+  std::vector<size_t> k_path;
+  bool complete;
+};
 
 struct QueueElement {
   QueueElement(
@@ -30,8 +36,7 @@ solution_path compute_path(
   const std::vector<std::vector<Treatment>>& treatment_arrays,
   double budget
 ) {
-  std::vector<std::vector<double>> spend_gain(3); // 3rd entry: SEs
-  std::vector<std::vector<size_t>> i_k_path(3); // 3rd entry: complete path
+  solution_path result;
   std::vector<size_t> active_arm_indices(treatment_arrays.size(), 0); // active treatment entry offset by one
 
   // TODO: Initialise vector with some treatment (could be null treatment). This lets us force all units to get a treatment.
@@ -62,10 +67,10 @@ solution_path compute_path(
     // assign
     spend += top.treatment_ptr->cost;
     gain += top.treatment_ptr->reward;
-    spend_gain[0].push_back(spend);
-    spend_gain[1].push_back(gain);
-    i_k_path[0].push_back(top.unit);
-    i_k_path[1].push_back(top.treatment_ptr->id);
+    result.cost_path.push_back(spend);
+    result.reward_path.push_back(gain);
+    result.i_path.push_back(top.unit);
+    result.k_path.push_back(top.treatment_ptr->id);
     active_arm_indices[top.unit]++;
 
     size_t next_entry = active_arm_indices[top.unit];
@@ -83,9 +88,9 @@ solution_path compute_path(
   }
 
   // "complete" path?
-  i_k_path[2].push_back(pqueue.empty() ? 1 : 0);
+  result.complete = pqueue.empty();
 
-  return std::make_pair(std::move(spend_gain), std::move(i_k_path));
+  return result;
 }
 
 } // namespace sparse_maq
