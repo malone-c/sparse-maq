@@ -1,15 +1,16 @@
 import cython
 from libcpp cimport bool
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libc.stdint cimport uint32_t
 from libcpp.memory cimport shared_ptr, static_pointer_cast
-from pyarrow.lib cimport ListArray, CArray, CUInt32Array, CDoubleArray, CListArray, pyarrow_unwrap_array
+from pyarrow.lib cimport ListArray, CArray, CStringArray, CDoubleArray, CListArray, pyarrow_unwrap_array
 import numpy as np
 import time
 import os
 
 
-from sparse_maq.mckpdefs cimport pair, vector, solution_path, run
+from sparse_maq.mckpdefs cimport vector, string, solution_path, solver_output, run
 
 cpdef solver_cpp(
     ListArray treatment_id_lists,
@@ -25,16 +26,12 @@ cpdef solver_cpp(
         t0 = time.perf_counter()
 
     # Unwrap arrays and cast to list arrays in one step
-    cdef shared_ptr[CArray] treatment_id_array = pyarrow_unwrap_array(treatment_id_lists)
-    cdef shared_ptr[CArray] reward_array = pyarrow_unwrap_array(reward_lists)
-    cdef shared_ptr[CArray] cost_array = pyarrow_unwrap_array(cost_lists)
-
     cdef shared_ptr[CListArray] treatment_id_list_array = static_pointer_cast[CListArray, CArray](pyarrow_unwrap_array(treatment_id_lists))
     cdef shared_ptr[CListArray] reward_list_array = static_pointer_cast[CListArray, CArray](pyarrow_unwrap_array(reward_lists))
     cdef shared_ptr[CListArray] cost_list_array = static_pointer_cast[CListArray, CArray](pyarrow_unwrap_array(cost_lists))
 
     # Extract values and cast to appropriate types
-    cdef shared_ptr[CUInt32Array] treatment_ids = static_pointer_cast[CUInt32Array, CArray](treatment_id_list_array.get().values())
+    cdef shared_ptr[CStringArray] treatment_ids = static_pointer_cast[CStringArray, CArray](treatment_id_list_array.get().values())
     cdef shared_ptr[CDoubleArray] rewards = static_pointer_cast[CDoubleArray, CArray](reward_list_array.get().values())
     cdef shared_ptr[CDoubleArray] costs = static_pointer_cast[CDoubleArray, CArray](cost_list_array.get().values())
 
@@ -42,7 +39,7 @@ cpdef solver_cpp(
         t1 = time.perf_counter()
         print(f"  Cython: PyArrow unwrap: {t1-t0:.2f}s")
 
-    cdef vector[vector[uint32_t]] cpp_treatment_ids
+    cdef vector[vector[string]] cpp_treatment_ids
     cdef vector[vector[double]] cpp_rewards
     cdef vector[vector[double]] cpp_costs
 
@@ -55,7 +52,6 @@ cpdef solver_cpp(
         print(f"  Cython: Vector resize: {t2-t1:.2f}s")
 
     cdef int i, j, offset, length
-    cdef uint32_t treatment_id
 
     for i in range(treatment_id_list_array.get().length()):
         offset = treatment_id_list_array.get().value_offset(i) # start
@@ -65,7 +61,7 @@ cpdef solver_cpp(
         cpp_rewards[i].resize(length)
         cpp_costs[i].resize(length)
         for j in range(length):
-            cpp_treatment_ids[i][j] = treatment_ids.get().Value(offset + j)
+            cpp_treatment_ids[i][j] = treatment_ids.get().GetString(offset + j)
             cpp_rewards[i][j] = rewards.get().Value(offset + j)
             cpp_costs[i][j] = costs.get().Value(offset + j)
 
@@ -73,7 +69,7 @@ cpdef solver_cpp(
         t3 = time.perf_counter()
         print(f"  Cython: Data copying loop: {t3-t2:.2f}s")
 
-    path = run(
+    cdef solver_output result = run(
         cpp_treatment_ids,
         cpp_rewards,
         cpp_costs,
@@ -84,8 +80,11 @@ cpdef solver_cpp(
         t4 = time.perf_counter()
         print(f"  Cython: C++ solver call: {t4-t3:.2f}s")
 
+    # cdef solution_path path = result.path
+    # cdef vector[string] treatment_id_map = result.treatment_id_mapping
+
     res = dict()
-    path_len = path.first[0].size()
+    path_len = result.path.cost_path.size()
 
     spend = np.empty(path_len, dtype="double")
     gain = np.empty(path_len, dtype="double")
@@ -99,17 +98,18 @@ cpdef solver_cpp(
     cdef long[::] view_kpath = kpath
 
     for i in range(path_len):
-        view_spend[i] = path.first[0][i]
-        view_gain[i] = path.first[1][i]
-        view_ipath[i] = path.second[0][i]
-        view_kpath[i] = path.second[1][i]
+        view_spend[i] = result.path.cost_path[i]
+        view_gain[i] = result.path.reward_path[i]
+        view_ipath[i] = result.path.i_path[i]
+        view_kpath[i] = result.path.k_path[i]
 
     res["spend"] = spend
     res["gain"] = gain
     res["ipath"] = ipath
     res["kpath"] = kpath
-    if path.second[2][0] > 0:
-        res["complete_path"] = True
-    else:
-        res["complete_path"] = False
+    res["complete_path"] = True if path.complete else False
+    res["treatment_id_mapping"] = np.array(
+        [result.treatment_id_mapping[i].decode('utf-8') for i in range(result.treatment_id_mapping.size())],
+        dtype=str
+    )
     return res

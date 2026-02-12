@@ -61,7 +61,7 @@ unique_treatment_ids = table.select(pl.col('treatment_id').explode().unique())
 print(unique_patient_ids)
 solver = sparse_maq.Solver(unique_patient_ids, unique_treatment_ids)
 
-results: SolverOutput = solver.fit(
+results: SolverOutput = solver.fit_from_polars(
     table,
     budget_constraint,
 )

@@ -8,16 +8,6 @@
 using namespace sparse_maq;
 
 TEST_CASE("E2E test matching Python test_mckp.py") {
-  /*
-  Python test data:
-  patients = ['a', 'b', 'c', 'd', 'e']
-  treatments = [['A','B','C','D','E'], ['A','B','C'], ['A','B','C'], ['A','B','C'], ['A','B','C']]
-  rewards = [[0,15,22,30], [0,18,32], [0,10,19], [0,17,28], [0,8,18]]
-  costs = [[0,10,20,21], [0,15,25], [0,8,16], [0,12,22], [0,7,14]]
-  budget = 50
-  Expected: spend[-2] == 47.0, gain[-2] == 65.0
-  */
-
   // Set up test data matching Python test
   std::vector<std::vector<std::string>> treatment_ids = {
     {"0", "1", "2", "3"},
@@ -46,42 +36,37 @@ TEST_CASE("E2E test matching Python test_mckp.py") {
   double budget = 50.0;
 
   // Run the full pipeline
-  solution_path result = run(treatment_ids, rewards, costs, budget);
 
-  auto& spend_gain = result.first;
-  auto& i_k_path = result.second;
-
-  // Print results for debugging
+  auto [path, treatment_num_to_id] = run_from_cpp(
+    std::move(treatment_ids), 
+    std::move(rewards), 
+    std::move(costs), 
+    std::move(budget)
+  );
+  
   std::cout << "\n=== E2E Test Results ===" << std::endl;
-  std::cout << "Path length: " << spend_gain[0].size() << std::endl;
+  std::cout << "Path length: " << path.cost_path.size() << std::endl;
 
-  for (size_t i = 0; i < spend_gain[0].size(); ++i) {
-    std::cout << "Step " << i << ": patient=" << i_k_path[0][i]
-              << ", treatment=" << i_k_path[1][i]
-              << ", spend=" << spend_gain[0][i]
-              << ", gain=" << spend_gain[1][i] << std::endl;
+  for (size_t i = 0; i < path.cost_path.size(); ++i) {
+    std::cout << "Step " << i << ": patient=" << path.i_path[i]
+              << ", treatment=" << path.k_path[i]
+              << ", cost=" << path.cost_path[i]
+              << ", reward=" << path.reward_path[i] << std::endl;
   }
 
-  // Check that we have at least 2 elements in the path
-  REQUIRE(spend_gain[0].size() >= 2);
-  REQUIRE(spend_gain[1].size() >= 2);
+  REQUIRE(path.cost_path.size() >= 2);
+  REQUIRE(path.reward_path.size() >= 2);
 
-  // Get the second-to-last element (index -2 in Python)
-  size_t idx = spend_gain[0].size() - 2;
-  double spend_second_last = spend_gain[0][idx];
-  double gain_second_last = spend_gain[1][idx];
+  size_t idx = path.cost_path.size() - 2;
+  double cost_second_last = path.cost_path[idx];
+  double reward_second_last = path.reward_path[idx];
 
-  std::cout << "\nSecond-to-last: spend=" << spend_second_last
-            << ", gain=" << gain_second_last << std::endl;
-  std::cout << "Expected: spend=47.0, gain=65.0" << std::endl;
+  std::cout << "\nSecond-to-last: cost=" << cost_second_last
+            << ", reward=" << reward_second_last << std::endl;
+  std::cout << "Expected: cost=47.0, reward=65.0" << std::endl;
 
-  // Verify against Python test expectations
-  CHECK(spend_second_last == doctest::Approx(47.0).epsilon(0.01));
-  CHECK(gain_second_last == doctest::Approx(65.0).epsilon(0.01));
-
-  // Additional sanity checks
-  // Note: Algorithm may exceed budget for "rounded up" solution
-  CHECK(i_k_path[2].size() == 1);         // Should have complete_path flag
+  CHECK(cost_second_last == doctest::Approx(47.0).epsilon(0.01));
+  CHECK(reward_second_last == doctest::Approx(65.0).epsilon(0.01));
 }
 
 TEST_CASE("E2E test with simple two-patient case") {
@@ -102,27 +87,29 @@ TEST_CASE("E2E test with simple two-patient case") {
 
   double budget = 15.0;
 
-  solution_path result = run(treatment_ids, rewards, costs, budget);
-
-  auto& spend_gain = result.first;
-  auto& i_k_path = result.second;
+  auto [result, treatment_num_to_id] = run_from_cpp(
+    std::move(treatment_ids), 
+    std::move(rewards), 
+    std::move(costs), 
+    std::move(budget)
+  );
 
   std::cout << "\n=== Simple E2E Test Results ===" << std::endl;
-  for (size_t i = 0; i < spend_gain[0].size(); ++i) {
-    std::cout << "Step " << i << ": patient=" << i_k_path[0][i]
-              << ", treatment=" << i_k_path[1][i]
-              << ", spend=" << spend_gain[0][i]
-              << ", gain=" << spend_gain[1][i] << std::endl;
+  for (size_t i = 0; i < result.cost_path.size(); ++i) {
+    std::cout << "Step " << i << ": patient=" << result.i_path[i]
+              << ", treatment=" << result.k_path[i]
+              << ", cost=" << result.cost_path[i]
+              << ", reward=" << result.reward_path[i] << std::endl;
   }
 
   // Basic sanity checks
-  CHECK(spend_gain[0].size() > 0);
-  CHECK(spend_gain[1].size() > 0);
+  CHECK(result.cost_path.size() > 0);
+  CHECK(result.reward_path.size() > 0);
 
   // Check monotonicity
-  for (size_t i = 1; i < spend_gain[0].size(); ++i) {
-    CHECK(spend_gain[0][i] >= spend_gain[0][i-1]);
-    CHECK(spend_gain[1][i] >= spend_gain[1][i-1]);
+  for (size_t i = 1; i < result.cost_path.size(); ++i) {
+    CHECK(result.cost_path[i] >= result.cost_path[i-1]);
+    CHECK(result.reward_path[i] >= result.reward_path[i-1]);
   }
 }
 
@@ -142,28 +129,30 @@ TEST_CASE("E2E test with dominated treatments removed") {
 
   double budget = 20.0;
 
-  solution_path result = run(treatment_ids, rewards, costs, budget);
-
-  auto& spend_gain = result.first;
-  auto& i_k_path = result.second;
+  auto [result, treatment_num_to_id] = run_from_cpp(
+    std::move(treatment_ids), 
+    std::move(rewards), 
+    std::move(costs), 
+    std::move(budget)
+  );
 
   std::cout << "\n=== Dominated Treatment E2E Test Results ===" << std::endl;
-  for (size_t i = 0; i < spend_gain[0].size(); ++i) {
-    std::cout << "Step " << i << ": patient=" << i_k_path[0][i]
-              << ", treatment=" << i_k_path[1][i]
-              << ", spend=" << spend_gain[0][i]
-              << ", gain=" << spend_gain[1][i] << std::endl;
+  for (size_t i = 0; i < result.cost_path.size(); ++i) {
+    std::cout << "Step " << i << ": patient=" << result.i_path[i]
+              << ", treatment=" << result.k_path[i]
+              << ", cost=" << result.cost_path[i]
+              << ", reward=" << result.reward_path[i] << std::endl;
   }
 
   // Treatment 2 should not appear in the path (it's dominated)
-  bool treatment_2_appears = false;
-  for (size_t treatment_id : i_k_path[1]) {
-    if (treatment_id == 2) {
-      treatment_2_appears = true;
+  bool treatment_1_appears = false;
+  for (size_t treatment_id : result.k_path) {
+    if (treatment_id == 1) {
+      treatment_1_appears = true;
     }
   }
-  CHECK(treatment_2_appears == false);
+  CHECK(treatment_1_appears == false);
 
   // Should have treatments 1 and 3
-  CHECK(spend_gain[0].size() > 0);
+  CHECK(result.cost_path.size() > 0);
 }

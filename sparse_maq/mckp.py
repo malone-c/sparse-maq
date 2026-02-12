@@ -23,7 +23,7 @@ class SolverOutput():
     ipath: npt.NDArray[np.int64]
     kpath: npt.NDArray[np.int64]
     complete_path: bool
-    # treatment_id_mapping: npt.NDArray[np.str_]
+    treatment_id_mapping: npt.NDArray
 
 class Solver:
     budget: float = math.inf
@@ -36,14 +36,8 @@ class Solver:
         # TODO: Handle this stuff inside the C++ extension
         self.patient_id_mapping = unique_patients.with_columns(patient_num=pl.col("patient_id").rank("dense") - 1)
 
-        self.treatment_id_mapping = (
-            unique_treatments
-                .filter(pl.col('treatment_id').str.to_lowercase() != 'dns') # remove DNS
-                .with_columns(treatment_num=pl.col("treatment_id").rank("dense").cast(pl.Int64))
-                .vstack(pl.DataFrame({'treatment_id': 'dns', 'treatment_num': 0})) # Add DNS back as 0
-        )
 
-    def fit(
+    def fit_from_polars(
         self,
         data: pl.DataFrame,
         budget: float = 0.0,
@@ -70,68 +64,13 @@ class Solver:
             data_original_size = data.estimated_size() / 1024**3
             print(f"Input data size: {data_original_size:.2f} GB")
 
-        # PHASE 1: Treatment ID mapping (explode/join/group_by)
-        # convert treatment ID to treatment number
-
-        # Step 1a: Select columns
-        treatment_nums = data.select('patient_id', 'treatment_id')
+        # PHASE 1: Sort by patient_id (treatment ID mapping is done in C++)
+        data = data.sort('patient_id')
 
         if PROFILE:
             t_current = time.perf_counter()
             _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 1a - select: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
-            print(f"  size after select: {treatment_nums.estimated_size()/1024**3:.2f} GB")
-            t_last = t_current
-
-        # Step 1b: Explode treatment_id
-        treatment_nums = treatment_nums.explode('treatment_id')
-
-        if PROFILE:
-            t_current = time.perf_counter()
-            _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 1b - explode: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
-            print(f"  size after explode: {treatment_nums.estimated_size()/1024**3:.2f} GB")
-            print(f"  rows after explode: {len(treatment_nums):,}")
-            t_last = t_current
-
-        # Step 1c: Join with treatment mapping
-        treatment_nums = treatment_nums.join(self.treatment_id_mapping, on='treatment_id')
-
-        if PROFILE:
-            t_current = time.perf_counter()
-            _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 1c - join: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
-            print(f"  size after join: {treatment_nums.estimated_size()/1024**3:.2f} GB")
-            t_last = t_current
-
-        # Step 1d: Select and rename
-        treatment_nums = treatment_nums.select('patient_id', treatment_id='treatment_num')
-
-        # Step 1e: Group by and aggregate
-        treatment_nums = treatment_nums.group_by('patient_id').agg('treatment_id')
-
-        if PROFILE:
-            t_current = time.perf_counter()
-            _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 1d-e - select/group_by: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
-            print(f"  final treatment_nums size: {treatment_nums.estimated_size()/1024**3:.2f} GB")
-            t_last = t_current
-
-        # PHASE 2: Data join and sort
-        data = (
-            data
-                .drop('treatment_id')
-                .join(treatment_nums, on='patient_id') # replace treatment_id with treatment_num
-                .sort('patient_id')
-        )
-        del treatment_nums
-        gc.collect()  # Force garbage collection to free memory
-
-        if PROFILE:
-            t_current = time.perf_counter()
-            _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 2 - data_join_sort: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
-            print(f"  data size: {data.estimated_size()/1024**3:.2f} GB")
+            print(f"Phase 1 - sort: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             t_last = t_current
 
         # PHASE 3: Arrow conversion
@@ -151,7 +90,7 @@ class Solver:
         # PHASE 4: Type casting and chunk combining
         # cast from large_list to list and combine the chunks so everything is contiguous in memory
         # (helps us iterate over them faster)
-        treatment_id_arrays = table.column("treatment_id").cast(pa.list_(pa.uint32())).combine_chunks()
+        treatment_id_arrays = table.column("treatment_id").cast(pa.list_(pa.string())).combine_chunks()
         reward_arrays = table.column("reward").cast(pa.list_(pa.float64())).combine_chunks()
         cost_arrays = table.column("cost").cast(pa.list_(pa.float64())).combine_chunks()
 
@@ -170,6 +109,10 @@ class Solver:
         )
 
         self.solver_output = SolverOutput(**solver_output_dict)
+        self.treatment_id_mapping = pl.DataFrame({
+            'treatment_num': list(range(len(self.solver_output.treatment_id_mapping))),
+            'treatment_id': self.solver_output.treatment_id_mapping,
+        })
 
         if PROFILE:
             t_current = time.perf_counter()
