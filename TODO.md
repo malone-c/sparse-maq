@@ -11,4 +11,9 @@
   - [numpy CAN be zero-copy](https://docs.pola.rs/py-polars/html/reference/dataframe/api/polars.DataFrame.to_numpy.html)
 - Support both int and str treatment/patient IDs (allows zero-copy Polars->numpy conversion)
 - Patient treatment sets are not contiguous across patients, leads to cache misses in `convex_hull.hpp`. Replace `vector<vector<Treatment>>` with flattened array
+- Stream `compute_path` output directly to Arrow/Parquet instead of buffering a 640MB intermediate struct
+  - Use a callback/sink pattern: add an `on_step` parameter of type `std::function<void(size_t unit, uint8_t treatment_id, double spend, double gain)>` to `compute_path`, called on each allocation step
+  - Caller supplies an Arrow `RecordBatchBuilder` that flushes to an IPC file writer every N rows (e.g. 1M), keeping RAM usage bounded regardless of path length
+  - Existing return-a-struct interface and tests remain unchanged; the callback is optional (defaulting to no-op) so small/test runs are unaffected
+  - Downsize types: `unit` → `int32_t`, `treatment_id` → `uint8_t`, consider `float` for spend/gain if precision allows — saves ~380MB at 20M rows before Parquet compression
   - Input format is array where each element is `{ treatment_id, reward, cost }`. We store a vector `patient_boundaries` which stores the start and end indices for each patient, and a pointer to their id. This is sorted by start index so we can use binary search to find the patient id for an index in the original data. We also store a boolean array of length `len(data)` which tells us whether a patient-treatment pair was pruned or not.
