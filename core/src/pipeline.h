@@ -4,6 +4,7 @@
 #include "preprocess_data.hpp"
 #include "convex_hull.hpp"
 #include "compute_path.hpp"
+#include <utility>
 
 #ifndef NDEBUG
   #define DEBUG_PRINT(x) std::cout << x << std::endl
@@ -20,10 +21,15 @@
 
 namespace sparse_maq {
 
-solution_path run(
-  std::vector<std::vector<std::string>>& treatment_id_arrays,
-  std::vector<std::vector<double>>& reward_arrays,
-  std::vector<std::vector<double>>& cost_arrays,
+struct solver_output {
+  solution_path path;
+  std::vector<std::string> treatment_id_mapping;
+};
+
+solver_output run_from_cpp(
+  std::vector<std::vector<std::string>>&& treatment_id_arrays,
+  std::vector<std::vector<double>>&& reward_arrays,
+  std::vector<std::vector<double>>&& cost_arrays,
   double budget
 ) {
   bool PROFILE = std::getenv("SPARSE_MAQ_PROFILE") != nullptr &&
@@ -32,10 +38,10 @@ solution_path run(
   auto t0 = std::chrono::high_resolution_clock::now();
 
   DEBUG_PRINT("Data successfully pre-processed");
-  auto [treatment_arrays, treatment_id_mapping] = process_data(
-    treatment_id_arrays,
-    reward_arrays,
-    cost_arrays
+  auto [treatment_arrays, treatment_id_mapping] = preprocess_data_cpp(
+    std::move(treatment_id_arrays),
+    std::move(reward_arrays),
+    std::move(cost_arrays)
   );
 
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -65,7 +71,25 @@ solution_path run(
     std::cout << "  C++: compute_path: " << compute_time.count() << "s" << std::endl;
   }
 
-  return path;
+  return solver_output{
+     path,
+     treatment_id_mapping
+  };
+}
+
+// Cython entry point: accepts lvalue refs, forwards via move into run_from_cpp.
+solver_output run(
+  std::vector<std::vector<std::string>>& treatment_id_arrays,
+  std::vector<std::vector<double>>& reward_arrays,
+  std::vector<std::vector<double>>& cost_arrays,
+  double budget
+) {
+  return run_from_cpp(
+    std::move(treatment_id_arrays),
+    std::move(reward_arrays),
+    std::move(cost_arrays),
+    budget
+  );
 }
 
 } // namespace sparse_maq

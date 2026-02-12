@@ -54,12 +54,13 @@ int main() {
 
   // Run the optimization pipeline
   std::cout << "Running optimization pipeline..." << std::endl;
-  solution_path result = run(treatment_ids, rewards, costs, budget);
+  auto [result, treatment_num_to_id] = run_from_cpp(
+    std::move(treatment_ids), 
+    std::move(rewards), 
+    std::move(costs), 
+    std::move(budget)
+  );
   std::cout << std::endl;
-
-  // Extract results
-  auto& spend_gain = result.first;
-  auto& i_k_path = result.second;
 
   // Display results
   std::cout << "========================================" << std::endl;
@@ -67,7 +68,7 @@ int main() {
   std::cout << "========================================" << std::endl;
   std::cout << std::endl;
 
-  if (spend_gain[0].empty()) {
+  if (result.cost_path.empty()) {
     std::cout << "No treatments allocated (budget too low or no valid treatments)." << std::endl;
   } else {
     std::cout << "Allocation Path:" << std::endl;
@@ -78,24 +79,24 @@ int main() {
               << std::setw(15) << "Total Gain" << std::endl;
     std::cout << std::string(58, '-') << std::endl;
 
-    for (size_t i = 0; i < spend_gain[0].size(); ++i) {
+    for (size_t i = 0; i < result.cost_path.size(); ++i) {
       std::cout << std::setw(6) << i
-                << std::setw(10) << i_k_path[0][i]
-                << std::setw(12) << i_k_path[1][i]
+                << std::setw(10) << result.i_path[i]
+                << std::setw(12) << result.k_path[i]
                 << std::setw(15) << std::fixed << std::setprecision(2)
-                << spend_gain[0][i]
-                << std::setw(15) << spend_gain[1][i] << std::endl;
+                << result.cost_path[i]
+                << std::setw(15) << result.reward_path[i] << std::endl;
     }
 
     std::cout << std::endl;
     std::cout << "Final Results:" << std::endl;
-    std::cout << "  - Total Spend: $" << spend_gain[0].back() << std::endl;
-    std::cout << "  - Total Reward: " << spend_gain[1].back() << std::endl;
+    std::cout << "  - Total Spend: $" << result.cost_path.back() << std::endl;
+    std::cout << "  - Total Reward: " << result.reward_path.back() << std::endl;
     std::cout << "  - Budget Remaining: $"
-              << (budget - spend_gain[0].back()) << std::endl;
+              << (budget - result.cost_path.back()) << std::endl;
 
     // Check if path is complete
-    if (i_k_path[2].size() > 0 && i_k_path[2][0] == 1) {
+    if (result.complete) {
       std::cout << "  - Status: Complete path (all beneficial treatments allocated)" << std::endl;
     } else {
       std::cout << "  - Status: Budget-constrained (more treatments available)" << std::endl;
@@ -106,8 +107,8 @@ int main() {
     // Summary of final patient assignments
     std::cout << "Final Patient Assignments:" << std::endl;
     std::vector<std::string> final_assignments(treatment_ids.size(), 0);
-    for (size_t i = 0; i < i_k_path[0].size(); ++i) {
-      final_assignments[i_k_path[0][i]] = i_k_path[1][i];
+    for (size_t i = 0; i < result.i_path.size(); ++i) {
+      final_assignments[result.i_path[i]] = result.k_path[i];
     }
 
     for (size_t i = 0; i < final_assignments.size(); ++i) {

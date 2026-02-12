@@ -7,7 +7,7 @@
 
 namespace sparse_maq {
 
-  struct Treatment { // TODO: Consider storing references in here instead of pointers for cache locality
+  struct Treatment { 
     Treatment(size_t id, double reward, double cost)
       : id(id), reward(reward), cost(cost) {}
 
@@ -19,10 +19,10 @@ namespace sparse_maq {
   std::pair<
     std::vector<std::vector<Treatment>>,
     std::vector<std::string>
-  > process_data(
-    std::vector<std::vector<std::string>>& treatment_id_arrays,
-    std::vector<std::vector<double>>& reward_arrays,
-    std::vector<std::vector<double>>& cost_arrays
+  > preprocess_data_cpp(
+    std::vector<std::vector<std::string>>&& treatment_id_arrays,
+    std::vector<std::vector<double>>&& reward_arrays,
+    std::vector<std::vector<double>>&& cost_arrays
   ) {
     std::unordered_map<std::string, size_t> treatment_id_to_num;
     std::vector<std::string> treatment_num_to_id;
@@ -54,6 +54,14 @@ namespace sparse_maq {
       }
 
       treatment_view_arrays.push_back(std::move(treatments));
+
+      // Free memory
+      treatment_id_arrays[i].clear();
+      treatment_id_arrays[i].shrink_to_fit();
+      reward_arrays[i].clear();
+      reward_arrays[i].shrink_to_fit();
+      cost_arrays[i].clear();
+      cost_arrays[i].shrink_to_fit();
     }
 
     return {
