@@ -1,8 +1,3 @@
-- Write cpp tests to speed up development
-- Support multiple budgets
-  - Each treatment has a "treatment type" integer 
-  - Cost state is kept in an array of length `len(unique_treatment_types)`
-- Manage treatment ID mapping in C++ to elide expensive Polars explode step
 - Make pyarrow -> C++ vector conversion truly zero-copy
 - Move from Cython to [nanobind](https://nanobind.readthedocs.io/)
   - Allows us to minimise translation layer (no more Cython data processing)
@@ -10,8 +5,7 @@
 - Support both numpy and arrow inputs
   - [numpy CAN be zero-copy](https://docs.pola.rs/py-polars/html/reference/dataframe/api/polars.DataFrame.to_numpy.html)
 - Support both int and str treatment/patient IDs (allows zero-copy Polars->numpy conversion)
-- Patient treatment sets are not contiguous across patients, leads to cache misses in `convex_hull.hpp`. Replace `vector<vector<Treatment>>` with flattened array
-- Stream `compute_path` output directly to Arrow/Parquet instead of buffering a 640MB intermediate struct
+- Stream `compute_path` output directly to Arrow/Parquet
   - Use a callback/sink pattern: add an `on_step` parameter of type `std::function<void(size_t unit, uint8_t treatment_id, double spend, double gain)>` to `compute_path`, called on each allocation step
   - Caller supplies an Arrow `RecordBatchBuilder` that flushes to an IPC file writer every N rows (e.g. 1M), keeping RAM usage bounded regardless of path length
   - Existing return-a-struct interface and tests remain unchanged; the callback is optional (defaulting to no-op) so small/test runs are unaffected
