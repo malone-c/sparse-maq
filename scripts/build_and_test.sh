@@ -48,9 +48,9 @@ for test in "${tests[@]}"; do
   echo -e "${BLUE}Compiling ${test}...${NC}"
   ${CXX} ${CXXFLAGS} -o "core/build/${test}" "core/tests/${test}.cpp"
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ ${test} compiled successfully${NC}"
+    echo -e "${GREEN} ${test} compiled successfully${NC}"
   else
-    echo -e "${RED}✗ ${test} compilation failed${NC}"
+    echo -e "${RED} ${test} compilation failed${NC}"
     exit 1
   fi
   echo ""
@@ -70,10 +70,10 @@ for test in "${tests[@]}"; do
   echo -e "${BLUE}----------------------------------------${NC}"
 
   if "./core/build/${test}"; then
-    echo -e "${GREEN}✓ ${test} passed${NC}"
+    echo -e "${GREEN} ${test} passed${NC}"
     passed_tests+=("${test}")
   else
-    echo -e "${RED}✗ ${test} failed${NC}"
+    echo -e "${RED} ${test} failed${NC}"
     failed_tests+=("${test}")
   fi
   echo ""
@@ -105,7 +105,7 @@ else
   echo -e "${RED}Failed: ${failed_count}${NC}"
   echo ""
   echo -e "${GREEN}========================================${NC}"
-  echo -e "${GREEN}  All tests passed! 🎉${NC}"
+  echo -e "${GREEN}  All tests passed! ${NC}"
   echo -e "${GREEN}========================================${NC}"
   exit 0
 fi
