@@ -107,7 +107,7 @@ cpdef solver_cpp(
     res["gain"] = gain
     res["ipath"] = ipath
     res["kpath"] = kpath
-    res["complete_path"] = True if path.complete else False
+    res["complete_path"] = True if result.path.complete else False
     res["treatment_id_mapping"] = np.array(
         [result.treatment_id_mapping[i].decode('utf-8') for i in range(result.treatment_id_mapping.size())],
         dtype=str

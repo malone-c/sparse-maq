@@ -55,11 +55,7 @@ budget_constraint = 50
 print("Python ListArray:", treatment_ids)
 print("\nC++ Analysis:")
 
-unique_patient_ids = table.select('patient_id').unique()
-unique_treatment_ids = table.select(pl.col('treatment_id').explode().unique())
-
-print(unique_patient_ids)
-solver = sparse_maq.Solver(unique_patient_ids, unique_treatment_ids)
+solver = sparse_maq.Solver()
 
 results: SolverOutput = solver.fit_from_polars(
     table,

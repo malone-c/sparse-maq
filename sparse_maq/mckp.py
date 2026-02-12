@@ -8,8 +8,6 @@ import gc
 import time
 import tracemalloc
 import os
-import math
-
 from dataclasses import dataclass
 from beartype import beartype
 
@@ -26,16 +24,8 @@ class SolverOutput():
     treatment_id_mapping: npt.NDArray
 
 class Solver:
-    budget: float = math.inf
-    solver_output: SolverOutput
-
-    def __init__(self, unique_patients: pl.DataFrame, unique_treatments: pl.DataFrame):
-        assert unique_patients.columns == ['patient_id']
-        assert unique_treatments.columns == ['treatment_id']
-
-        # TODO: Handle this stuff inside the C++ extension
-        self.patient_id_mapping = unique_patients.with_columns(patient_num=pl.col("patient_id").rank("dense") - 1)
-
+    def __init__(self):
+        self._is_fit = False
 
     def fit_from_polars(
         self,
@@ -64,16 +54,14 @@ class Solver:
             data_original_size = data.estimated_size() / 1024**3
             print(f"Input data size: {data_original_size:.2f} GB")
 
-        # PHASE 1: Sort by patient_id (treatment ID mapping is done in C++)
         data = data.sort('patient_id')
 
         if PROFILE:
             t_current = time.perf_counter()
             _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 1 - sort: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
+            print(f"sort: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             t_last = t_current
 
-        # PHASE 3: Arrow conversion
         table: pa.Table = pl.DataFrame(data).to_arrow()
 
         assert 'treatment_id' in table.column_names, "table must contain a treatment_id column."
@@ -83,13 +71,11 @@ class Solver:
         if PROFILE:
             t_current = time.perf_counter()
             _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 3 - arrow_conversion: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
+            print(f"arrow_conversion: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"  table size: {table.nbytes/1024**3:.2f} GB")
             t_last = t_current
 
-        # PHASE 4: Type casting and chunk combining
         # cast from large_list to list and combine the chunks so everything is contiguous in memory
-        # (helps us iterate over them faster)
         treatment_id_arrays = table.column("treatment_id").cast(pa.list_(pa.string())).combine_chunks()
         reward_arrays = table.column("reward").cast(pa.list_(pa.float64())).combine_chunks()
         cost_arrays = table.column("cost").cast(pa.list_(pa.float64())).combine_chunks()
@@ -97,7 +83,7 @@ class Solver:
         if PROFILE:
             t_current = time.perf_counter()
             _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 4 - type_casting: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
+            print(f"type_casting: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             t_last = t_current
         
         solver_output_dict: dict = solver_cpp(
@@ -117,7 +103,7 @@ class Solver:
         if PROFILE:
             t_current = time.perf_counter()
             _, peak = tracemalloc.get_traced_memory()
-            print(f"Phase 5 - cpp_solver: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
+            print(f"cpp_solver: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             print(f"\nTotal time: {t_current - t_start:.2f}s")
             print(f"Total peak memory: {peak/1024**3:.2f} GB")
             tracemalloc.stop()
