@@ -35,8 +35,8 @@ A simple benchmark performed with simulated data:
 
 | Solver | Execution Time | Peak Memory |
 |--------|---------------|-------------|
-| `maq` | 27.60s | 12,240,548 KB (12.2 GB) |
-| `sparse_maq` | 11.37s | 7,525,692 KB (7.5 GB) |
+| `maq` | 33.35s | 12,240,548 KB (12.2 GB) |
+| `sparse_maq` | 11.0s | 5,904,220 KB (5.9 GB) |
 
 
 # References
