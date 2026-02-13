@@ -9,13 +9,41 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import platform
+
 import polars as pl
 
 # Allow running from repo root or benchmarking/
 sys.path.insert(0, str(Path(__file__).parent))
 
 from generate_data import generate_data_sparse_maq
-from run_benchmark_suite import parse_time_output
+from run_benchmark_suite import parse_time_output as _parse_time_output_gnu
+
+
+def _parse_time_output_macos(stderr: str) -> dict:
+    """Parse macOS /usr/bin/time -l output.
+
+    First line: '  0.11 real   0.00 user   0.00 sys'
+    RSS line:   '   1294336  maximum resident set size'  (bytes on macOS)
+    """
+    metrics: dict = {}
+    m = re.search(r"([\d.]+)\s+real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys", stderr)
+    if m:
+        metrics["wall_time_seconds"] = float(m.group(1))
+        metrics["user_time_seconds"] = float(m.group(2))
+        metrics["system_time_seconds"] = float(m.group(3))
+    m = re.search(r"(\d+)\s+maximum resident set size", stderr)
+    if m:
+        # macOS reports RSS in bytes; convert to KB to match the GNU convention
+        metrics["peak_memory_kb"] = int(m.group(1)) // 1024
+    return metrics
+
+
+def parse_time_output(stderr: str) -> dict:
+    """Dispatch to the platform-appropriate /usr/bin/time output parser."""
+    if platform.system() == "Darwin":
+        return _parse_time_output_macos(stderr)
+    return _parse_time_output_gnu(stderr)
 
 N = 1_000_000
 K = 500
@@ -23,7 +51,7 @@ P = 0.05
 
 
 def parse_stage_timings(stdout: str) -> list[dict]:
-    """Parse SPARSE_MAQ_PROFILE=1 stage lines from stdout.
+    """Parse SPARSE_MAQ_PROFILE=1 Python-level stage lines from stdout.
 
     Each stage line looks like:
         sort: 1.23s, Peak: 0.45 GB
@@ -42,6 +70,33 @@ def parse_stage_timings(stdout: str) -> list[dict]:
             }
         )
     return stages
+
+
+def parse_substage_timings(stdout: str) -> list[dict]:
+    """Parse Cython/C++ sub-stage lines emitted when SPARSE_MAQ_PROFILE=1.
+
+    Lines look like (leading spaces, no Peak field):
+        Cython: PyArrow unwrap: 0.12s
+        Cython: Flat buffer extraction: 0.03s
+        Cython: C++ solver call: 5.67s
+        C++: process_data_flat: 2.34s
+        C++: convex_hull (Solver init): 1.23s
+        C++: compute_path: 0.45s
+    """
+    substages = []
+    # Match "  Prefix: Stage description: 1.23s"
+    pattern = re.compile(
+        r"^\s+(Cython|C\+\+):\s+(.+?):\s+([\d.]+)s\s*$", re.MULTILINE
+    )
+    for m in pattern.finditer(stdout):
+        substages.append(
+            {
+                "prefix": m.group(1),
+                "stage": m.group(2).strip(),
+                "elapsed_s": float(m.group(3)),
+            }
+        )
+    return substages
 
 
 def bottleneck_narrative(
@@ -78,6 +133,7 @@ def bottleneck_narrative(
 
 def build_report(
     stages: list[dict],
+    substages: list[dict],
     sys_metrics: dict,
     stdout: str,
     stderr: str,
@@ -130,6 +186,25 @@ def build_report(
     else:
         stage_section = "## Stage-level breakdown\n\nNo stage data captured.\n"
 
+    # --- Cython / C++ sub-stage breakdown ---
+    if substages:
+        sub_total = sum(s["elapsed_s"] for s in substages)
+        sub_rows = []
+        for s in substages:
+            pct = s["elapsed_s"] / sub_total * 100 if sub_total else 0
+            sub_rows.append(
+                f"| {s['prefix']} | {s['stage']} | {s['elapsed_s']:.3f} | {pct:.1f}% |"
+            )
+        substage_section = (
+            "## Cython / C++ sub-stage breakdown\n\n"
+            "| Layer | Stage | Elapsed (s) | % of sub-total |\n"
+            "|-------|-------|-------------|----------------|\n"
+            + "\n".join(sub_rows)
+            + f"\n\n_Sub-total: {sub_total:.3f}s_\n"
+        )
+    else:
+        substage_section = "## Cython / C++ sub-stage breakdown\n\nNo sub-stage data captured.\n"
+
     # --- Bottleneck analysis ---
     bottleneck = bottleneck_narrative(stages, sys_metrics, total_s)
 
@@ -141,6 +216,7 @@ def build_report(
 
 {sys_section}
 {stage_section}
+{substage_section}
 ## Bottleneck analysis
 
 {bottleneck}
@@ -186,9 +262,10 @@ def main() -> None:
         env = {**os.environ, "SPARSE_MAQ_PROFILE": "1"}
         repo_root = Path(__file__).parent.parent
 
+        time_flag = "-l" if platform.system() == "Darwin" else "-v"
         cmd = [
             "/usr/bin/time",
-            "-v",
+            time_flag,
             "uv",
             "run",
             "benchmarking/run_sparse_maq.py",
@@ -212,10 +289,11 @@ def main() -> None:
 
     # --- Step 3: Parse outputs ---
     stages = parse_stage_timings(stdout)
+    substages = parse_substage_timings(stdout)
     sys_metrics = parse_time_output(stderr)
 
     # --- Step 4: Build and print report ---
-    report = build_report(stages, sys_metrics, stdout, stderr, avg_treatments)
+    report = build_report(stages, substages, sys_metrics, stdout, stderr, avg_treatments)
 
     print("\n" + report)
 

@@ -2,15 +2,19 @@ import cython
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t
+from libc.stdint cimport int32_t, int64_t, uint8_t, uint32_t
 from libcpp.memory cimport shared_ptr, static_pointer_cast
+from libcpp.utility cimport move
 from pyarrow.lib cimport ListArray, CArray, CStringArray, CDoubleArray, CListArray, pyarrow_unwrap_array
 import numpy as np
 import time
 import os
 
 
-from sparse_maq.mckpdefs cimport vector, string, solution_path, solver_output, run
+from sparse_maq.mckpdefs cimport (
+    vector, string, solution_path, solver_output, run_flat,
+    CDoubleArrayRaw, CStringArrayRaw,
+)
 
 cpdef solver_cpp(
     ListArray treatment_id_lists,
@@ -39,46 +43,52 @@ cpdef solver_cpp(
         t1 = time.perf_counter()
         print(f"  Cython: PyArrow unwrap: {t1-t0:.2f}s")
 
-    cdef vector[vector[string]] cpp_treatment_ids
-    cdef vector[vector[double]] cpp_rewards
-    cdef vector[vector[double]] cpp_costs
+    cdef int64_t n_treatments = rewards.get().length()
+    cdef int64_t n_patients = treatment_id_list_array.get().length()
 
-    cpp_treatment_ids.resize(treatment_id_list_array.get().length())
-    cpp_rewards.resize(reward_list_array.get().length())
-    cpp_costs.resize(cost_list_array.get().length())
+    # Cast to extended types to call raw buffer methods not declared in
+    # pyarrow's pxd. The underlying C++ class is identical — this is safe.
+    cdef const double* rewards_ptr = (<CDoubleArrayRaw*>rewards.get()).raw_values()
+    cdef const double* costs_ptr = (<CDoubleArrayRaw*>costs.get()).raw_values()
+    cdef const int32_t* reward_offsets_ptr = reward_list_array.get().raw_value_offsets()
+
+    # String IDs: raw pointer + offset from CStringArray
+    cdef const int32_t* str_offsets_ptr = (<CStringArrayRaw*>treatment_ids.get()).raw_value_offsets()
+    cdef const uint8_t* str_data_ptr = (<CStringArrayRaw*>treatment_ids.get()).raw_data()
+    cdef int32_t str_data_len = str_offsets_ptr[n_treatments]
+
+    # Bulk copy: .assign(begin, end) — one memcpy-equivalent per column.
+    # Cython doesn't support pointer arithmetic in cdef constructor args,
+    # so we declare first then assign.
+    cdef vector[double] cpp_rewards_flat
+    cdef vector[double] cpp_costs_flat
+    cdef vector[int32_t] cpp_list_offsets
+    cdef vector[int32_t] cpp_str_offsets
+    cdef vector[uint8_t] cpp_str_data
+
+    cpp_rewards_flat.assign(rewards_ptr, rewards_ptr + n_treatments)
+    cpp_costs_flat.assign(costs_ptr, costs_ptr + n_treatments)
+    cpp_list_offsets.assign(reward_offsets_ptr, reward_offsets_ptr + n_patients + 1)
+    cpp_str_offsets.assign(str_offsets_ptr, str_offsets_ptr + n_treatments + 1)
+    cpp_str_data.assign(str_data_ptr, str_data_ptr + str_data_len)
 
     if PROFILE:
         t2 = time.perf_counter()
-        print(f"  Cython: Vector resize: {t2-t1:.2f}s")
+        print(f"  Cython: Flat buffer extraction: {t2-t1:.2f}s")
 
-    cdef int i, j, offset, length
-
-    for i in range(treatment_id_list_array.get().length()):
-        offset = treatment_id_list_array.get().value_offset(i) # start
-        length = treatment_id_list_array.get().value_length(i) # end
-
-        cpp_treatment_ids[i].resize(length)
-        cpp_rewards[i].resize(length)
-        cpp_costs[i].resize(length)
-        for j in range(length):
-            cpp_treatment_ids[i][j] = treatment_ids.get().GetString(offset + j)
-            cpp_rewards[i][j] = rewards.get().Value(offset + j)
-            cpp_costs[i][j] = costs.get().Value(offset + j)
-
-    if PROFILE:
-        t3 = time.perf_counter()
-        print(f"  Cython: Data copying loop: {t3-t2:.2f}s")
-
-    cdef solver_output result = run(
-        cpp_treatment_ids,
-        cpp_rewards,
-        cpp_costs,
+    cdef solver_output result = run_flat(
+        n_patients,
+        move(cpp_list_offsets),
+        move(cpp_rewards_flat),
+        move(cpp_costs_flat),
+        move(cpp_str_offsets),
+        move(cpp_str_data),
         budget
     )
 
     if PROFILE:
-        t4 = time.perf_counter()
-        print(f"  Cython: C++ solver call: {t4-t3:.2f}s")
+        t3 = time.perf_counter()
+        print(f"  Cython: C++ solver call: {t3-t2:.2f}s")
 
     # cdef solution_path path = result.path
     # cdef vector[string] treatment_id_map = result.treatment_id_mapping
