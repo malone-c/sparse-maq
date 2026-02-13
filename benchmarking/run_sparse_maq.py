@@ -11,6 +11,6 @@ if __name__ == '__main__':
     patients = pl.read_parquet(f'{args.base_path}/patients.parquet')
     data = pl.read_parquet(f'{args.base_path}/data.parquet')
     
-    solver = Solver(patients, treatments)
-    solver.fit(data)
+    solver = Solver()
+    solver.fit_from_polars(data)
 

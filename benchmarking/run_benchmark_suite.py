@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 from typing import Any
+import argparse
 
 import polars as pl
 
@@ -103,13 +104,12 @@ def run_single_benchmark(
         generate_data(n=n, k=k, p=p, temp_dir=temp_dir, solver=solver)
 
         # Step 2: Time only the solver execution
-        solver_script = f"benchmarking/run_{solver}.py"
         cmd = [
             "/usr/bin/time",
             "-v",
             "uv",
             "run",
-            solver_script,
+            f"benchmarking/run_{solver}.py",
             "--base-path",
             str(temp_dir),
         ]
@@ -259,16 +259,18 @@ def main():
 
 if __name__ == '__main__':
     """CLI entry point."""
-    sparsity_levels = [x / 40 for x in range(1, 21)]
-    sparsity_levels = [0.05]
-    
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', nargs='+', default=0.05, type=float)
+    parser.add_argument('-n', default=1_000_000, type=int)
+    parser.add_argument('-k', default=500, type=int)
+    args = parser.parse_args()
+
     # Run benchmark suite
     try:
         output_file = run_benchmark_suite(
-            n=1000_000,
-            k=1_000,
-            sparsity_levels=sparsity_levels, 
+            n=args.n,
+            k=args.k,
+            sparsity_levels=args.p, 
             output_dir=Path('benchmarking/results')
         )
     except Exception as e:
