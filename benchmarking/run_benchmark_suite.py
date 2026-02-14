@@ -149,7 +149,7 @@ def run_single_benchmark(
 
 
 def run_benchmark_suite(
-        n: int, k: int, sparsity_levels: list[float], output_dir: Path,
+    n: int, k: int, sparsity_levels: list[float], output_dir: Path, runs: int = 1,
 ) -> Path:
     """
     Execute full benchmark suite with progress tracking.
@@ -181,17 +181,36 @@ def run_benchmark_suite(
 
     # Run each benchmark
     for p, solver in itertools.product(sparsity_levels, ['maq', 'sparse_maq']):
-        print(f"Running p={p}")
+        print(f"Running p={p}, solver={solver}" + (f" ({runs} runs)" if runs > 1 else ""))
 
         run_timestamp = datetime.now().isoformat()
 
-        result = run_single_benchmark(
-            n=n,
-            k=k,
-            p=p,
-            solver=solver,
-            temp_dir=temp_dir,
-        )
+        run_results = []
+        for i in range(runs):
+            if runs > 1:
+                print(f"  Run {i + 1}/{runs}...")
+            run_results.append(run_single_benchmark(
+                n=n,
+                k=k,
+                p=p,
+                solver=solver,
+                temp_dir=temp_dir,
+            ))
+
+        # Average numeric metrics across successful runs; report first error if any failed
+        numeric_keys = ["wall_time_seconds", "user_time_seconds", "system_time_seconds", "peak_memory_kb"]
+        successful_runs = [r for r in run_results if r["exit_code"] == 0]
+        failed_runs = [r for r in run_results if r["exit_code"] != 0]
+
+        result = {
+            "p": p,
+            "solver": solver,
+            "exit_code": run_results[-1]["exit_code"],
+            "error_message": next((r["error_message"] for r in failed_runs), None),
+        }
+        for key in numeric_keys:
+            values = [r[key] for r in successful_runs if r[key] is not None]
+            result[key] = sum(values) / len(values) if values else None
 
         result["timestamp"] = run_timestamp
 
@@ -260,9 +279,10 @@ def main():
 if __name__ == '__main__':
     """CLI entry point."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', nargs='+', default=0.05, type=float)
+    parser.add_argument('-p', nargs='+', default=[0.05], type=float)
     parser.add_argument('-n', default=1_000_000, type=int)
     parser.add_argument('-k', default=500, type=int)
+    parser.add_argument('--runs', default=1, type=int, help='Number of runs to average over')
     args = parser.parse_args()
 
     # Run benchmark suite
@@ -270,8 +290,9 @@ if __name__ == '__main__':
         output_file = run_benchmark_suite(
             n=args.n,
             k=args.k,
-            sparsity_levels=args.p, 
-            output_dir=Path('benchmarking/results')
+            sparsity_levels=args.p,
+            output_dir=Path('benchmarking/results'),
+            runs=args.runs,
         )
     except Exception as e:
         print(f"Error running benchmark suite: {e}", file=sys.stderr)
