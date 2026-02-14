@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from beartype import beartype
 
-from .ext import solver_cpp
+from .ext import solver_cpp, solver_cpp_old
 
 @beartype
 @dataclass
@@ -32,6 +32,7 @@ class Solver:
         data: pl.DataFrame,
         budget: float = 0.0,
         n_threads: int = 0,
+        use_flat_buffers: bool = True,
     ) -> SolverOutput:
         """Solve the multi-armed knapsack problem using a path algorithm."""
         # TODO: Data validation
@@ -86,7 +87,8 @@ class Solver:
             print(f"type_casting: {t_current - t_last:.2f}s, Peak: {peak/1024**3:.2f} GB")
             t_last = t_current
         
-        solver_output_dict: dict = solver_cpp(
+        _solver = solver_cpp if use_flat_buffers else solver_cpp_old
+        solver_output_dict: dict = _solver(
             treatment_id_arrays,
             reward_arrays,
             cost_arrays,
