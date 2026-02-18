@@ -81,8 +81,7 @@ def run_single_benchmark(
     Args:
         n: Number of patients
         k: Number of treatments
-        solver: Solver name ('maq' or 'sparse_maq')
-        timeout: Maximum execution time in seconds
+        solver: Solver name ('maq', 'sparse_maq', or 'maq_optimized')
         temp_dir: Directory for temporary data files
 
     Returns:
@@ -165,13 +164,14 @@ def run_benchmark_suite(
     """
     Execute full benchmark suite with progress tracking.
 
-    Loads configuration, runs all benchmark combinations, and saves
-    results incrementally to CSV.
+    Runs all benchmark combinations for maq, sparse_maq, and maq_optimized,
+    and saves results incrementally to CSV.
 
     Args:
-        config_path: Path to YAML configuration file
+        n: Number of patients
+        k: Number of treatments
+        sparsity_levels: List of eligibility probabilities to benchmark
         output_dir: Directory to save results CSV
-        verbose: Whether to print progress information
 
     Returns:
         Path to output CSV file
@@ -186,14 +186,14 @@ def run_benchmark_suite(
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = output_dir / f"benchmark_{timestamp}.csv"
-    log_file = output_dir / f"benchmark_{timestamp}.log"
+    output_file = output_dir / f"benchmark_optimized_{timestamp}.csv"
+    log_file = output_dir / f"benchmark_optimized_{timestamp}.log"
 
     results = []
 
     # Run each benchmark
-    for p, solver in itertools.product(sparsity_levels, ['maq', 'sparse_maq']):
-        print(f"Running p={p}")
+    for p, solver in itertools.product(sparsity_levels, ['maq', 'sparse_maq', 'maq_optimized']):
+        print(f"Running p={p}, solver={solver}")
 
         run_timestamp = datetime.now().isoformat()
 
@@ -274,7 +274,7 @@ def main():
 if __name__ == '__main__':
     """CLI entry point."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', nargs='+', default=0.05, type=float)
+    parser.add_argument('-p', nargs='+', default=[0.05], type=float)
     parser.add_argument('-n', default=1_000_000, type=int)
     parser.add_argument('-k', default=500, type=int)
     args = parser.parse_args()
@@ -284,7 +284,7 @@ if __name__ == '__main__':
         output_file = run_benchmark_suite(
             n=args.n,
             k=args.k,
-            sparsity_levels=args.p, 
+            sparsity_levels=args.p,
             output_dir=Path('benchmarking/results')
         )
     except Exception as e:
@@ -292,5 +292,3 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
-
-

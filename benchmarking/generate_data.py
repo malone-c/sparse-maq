@@ -62,6 +62,14 @@ def generate_data(n: int, k: int, p: float, temp_dir: Path, solver: str) -> None
         df.write_parquet(temp_dir / 'data.parquet')
         print("  Sparse MAQ data generation complete")
 
+    elif solver == 'maq_optimized':
+        print("  Generating optimized MAQ data (sparse format)...")
+        treatments, patients, df = generate_data_sparse_maq(n, k, p)
+        treatments.write_parquet(temp_dir / 'treatments.parquet')
+        patients.write_parquet(temp_dir / 'patients.parquet')
+        df.write_parquet(temp_dir / 'data.parquet')
+        print("  Optimized MAQ data generation complete")
+
     else:
         raise Exception('Give a proper value of solver')
 if __name__ == '__main__':
